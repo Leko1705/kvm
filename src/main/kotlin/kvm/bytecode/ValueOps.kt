@@ -101,6 +101,22 @@ operator fun Value.div(other: Value): Value {
     throw IllegalArgumentException("can not divide $this by $other")
 }
 
+operator fun Value.rem(other: Value): Value {
+    if (this.type == IntType && other.type == IntType) {
+        return Operation(this, other, IRemInstruction, IntType)
+    }
+    if (this.type == LongType && other.type == LongType) {
+        return Operation(this, other, LRemInstruction, IntType)
+    }
+    if (this.type == FloatType && other.type == FloatType) {
+        return Operation(this, other, FRemInstruction, FloatType)
+    }
+    if (this.type == DoubleType && other.type == DoubleType) {
+        return Operation(this, other, DRemInstruction, DoubleType)
+    }
+    throw IllegalArgumentException("can not 'mod' $this by $other")
+}
+
 infix fun Value.and(other: Value): Value {
     if (this.type == IntType && other.type == IntType) {
         return Operation(this, other, IAndInstruction, IntType)
