@@ -28,8 +28,7 @@ interface ProjectBuilder {
 }
 
 fun ProjectBuilder.buildJar(builder: JarBuilder.() -> Unit) {
-    val jarFile = JarBuilder().apply(builder).build()
-    jar(jarFile)
+    jar(JarFile(builder))
 }
 
 fun ProjectBuilder.loadJar(path: String, loader: JarFileLoader = JVMJarFileLoader) {

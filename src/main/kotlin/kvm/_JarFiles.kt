@@ -8,7 +8,7 @@ import com.leko.kvm.typing.ClassType
 annotation class JarGen
 
 @JarGen
-class JarBuilder {
+class JarBuilder internal constructor() {
 
     private data class GeneratedClassFile(override val declaration: ClassDeclaration) : ClassFile
     private data class GeneratedJarFile(override val entries: List<JarFile.Entry>): JarFile
