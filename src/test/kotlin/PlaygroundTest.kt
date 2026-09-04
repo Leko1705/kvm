@@ -20,15 +20,13 @@ class PlaygroundTest {
 
             public[IntType].field("x")
 
-            public.constructor() {
+            public.constructor {
                 superCall()
                 ClassType("MyClass").call("foo").eval()
-                returns()
             }
 
             public.static.final[VoidType].method("foo")() {
                 ClassType("MyClass").call("foo").eval()
-                returns()
             }
 
         }

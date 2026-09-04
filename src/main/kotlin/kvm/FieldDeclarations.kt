@@ -9,7 +9,7 @@ data class FieldSignature(
     val type: Type,
 )
 
-fun FieldSignature.readable(): String =
+fun FieldSignature.readableJvm(): String =
     "${owner.jvmName}.$name:${type.jvmName}"
 
 sealed interface FieldDeclaration : Element {

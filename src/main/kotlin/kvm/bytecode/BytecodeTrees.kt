@@ -1,6 +1,7 @@
 package com.leko.kvm.bytecode
 
 import com.leko.kvm.FieldSignature
+import com.leko.kvm.MethodDescriptor
 import com.leko.kvm.MethodSignature
 import com.leko.kvm.typing.ArrayType
 import com.leko.kvm.typing.BooleanType
@@ -15,7 +16,6 @@ import com.leko.kvm.typing.NullType
 import com.leko.kvm.typing.ShortType
 import com.leko.kvm.typing.Type
 import com.leko.kvm.typing.VoidType
-import jdk.internal.classfile.instruction.ThrowInstruction
 
 interface InstructionGenerator {
     fun emit(instruction: Instruction)
@@ -242,34 +242,40 @@ data class UnaryOperation(
     }
 }
 
-data class Call(
+data class CallVirtual(
     val receiver: Value?,
-    val signature: MethodSignature,
+    val owner: ClassType,
+    val name: String,
     val args: List<Value>,
+    val returnType: Type
 ): Value {
-    override val type: Type get() = signature.returnType
+    override val type: Type get() = returnType
     override fun generate(generator: InstructionGenerator) {
         receiver?.generate(generator)
         args.forEach { it.generate(generator) }
-        generator.emit(InvokeVirtualInstruction(signature))
+        val sig = MethodSignature(name, MethodDescriptor(args.map { it.type }, returnType))
+        generator.emit(InvokeVirtualInstruction(owner, sig))
     }
 }
 
 data class CallSpecial(
     val receiver: Value?,
-    val signature: MethodSignature,
+    val owner: ClassType,
+    val name: String,
     val args: List<Value>,
+    val returnType: Type
 ): Value {
-    override val type: Type get() = signature.returnType
+    override val type: Type get() = returnType
     override fun generate(generator: InstructionGenerator) {
         receiver?.generate(generator)
         args.forEach { it.generate(generator) }
-        generator.emit(InvokeSpecialInstruction(signature))
+        val sig = MethodSignature(name, MethodDescriptor(args.map { it.type }, returnType))
+        generator.emit(InvokeSpecialInstruction(owner, sig))
     }
 }
 
 data class StaticCall(
-    val receiver: ClassType,
+    val owner: ClassType,
     val name: String,
     val args: List<Value>,
     val returnType: Type,
@@ -277,8 +283,8 @@ data class StaticCall(
     override val type: Type get() = returnType
     override fun generate(generator: InstructionGenerator) {
         args.forEach { it.generate(generator) }
-        val sig = MethodSignature(receiver, name, args.map { it.type }, returnType)
-        generator.emit(InvokeStaticInstruction(sig))
+        val sig = MethodSignature(name, MethodDescriptor(args.map { it.type }, returnType))
+        generator.emit(InvokeStaticInstruction(owner, sig))
     }
 }
 
@@ -291,8 +297,8 @@ data class New(
         generator.emit(NewInstruction(type))
         generator.emit(DupInstruction)
         args.forEach { it.generate(generator) }
-        val sig = MethodSignature(type, "<init>", args.map { it.type }, VoidType)
-        generator.emit(InvokeSpecialInstruction(sig))
+        val sig = MethodSignature("<init>", MethodDescriptor(args.map { it.type }, VoidType))
+        generator.emit(InvokeSpecialInstruction(type, sig))
     }
 }
 

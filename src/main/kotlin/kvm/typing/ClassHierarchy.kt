@@ -40,15 +40,12 @@ class ClassHierarchy(classFiles: Iterable<ClassDeclaration>) {
         while (current != null) {
             when (val decl = declarationOf(current)) {
                 is ConcreteClass -> {
-                    decl.methods.firstOrNull { it.signature.matchesIgnoringOwner(target) }?.let { return it }
+                    decl.methods.firstOrNull { it.signature == target }?.let { return it }
                     current = decl.superClass
                 }
-                is PhantomClass -> return PhantomMethod(target.copy(owner = current))
+                is PhantomClass -> return PhantomMethod(decl.type, target)
             }
         }
-        return PhantomMethod(target)
+        return PhantomMethod(startType, target)
     }
 }
-
-private fun MethodSignature.matchesIgnoringOwner(other: MethodSignature): Boolean =
-    name == other.name && parameterTypes == other.parameterTypes && returnType == other.returnType

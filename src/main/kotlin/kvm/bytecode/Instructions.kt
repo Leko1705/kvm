@@ -440,17 +440,83 @@ class PutFieldInstruction(field: FieldSignature) : AbstractPutFieldInstruction(f
 
 // ── method invocation ────────────────────────────────────────────────────────
 
-sealed class InvocationInstruction(val method: MethodSignature) : Instruction
+sealed interface InvocationInstruction : Instruction
 
-class InvokeVirtualInstruction(method: MethodSignature): InvocationInstruction(method)
+sealed interface KnownTargetInvocationInstruction : InvocationInstruction {
+    val owner: ClassType
+    val method: MethodSignature
+}
 
-class InvokeSpecialInstruction(method: MethodSignature): InvocationInstruction(method)
+sealed interface DirectInvocationInstruction : KnownTargetInvocationInstruction
 
-class InvokeStaticInstruction(method: MethodSignature): InvocationInstruction(method)
+sealed interface IndirectInvocationInstruction : KnownTargetInvocationInstruction
 
-class InvokeInterfaceInstruction(method: MethodSignature): InvocationInstruction(method)
+class InvokeVirtualInstruction(
+    override val owner: ClassType,
+    override val method: MethodSignature,
+): IndirectInvocationInstruction
 
-class InvokeDynamicInstruction(method: MethodSignature): InvocationInstruction(method)
+class InvokeSpecialInstruction(
+    override val owner: ClassType,
+    override val method: MethodSignature,
+): DirectInvocationInstruction
+
+class InvokeStaticInstruction(
+    override val owner: ClassType,
+    override val method: MethodSignature,
+): DirectInvocationInstruction
+
+class InvokeInterfaceInstruction(
+    override val owner: ClassType,
+    override val method: MethodSignature,
+): IndirectInvocationInstruction
+
+class InvokeDynamicInstruction(
+    val callSiteSignature: MethodSignature,
+    val bootstrapMethod: MethodHandle,
+    val bootstrapArguments: List<BootstrapArgument>
+): InvocationInstruction
+
+enum class HandleKind {
+    GET_FIELD,
+    GET_STATIC,
+    PUT_FIELD,
+    PUT_STATIC,
+    INVOKE_VIRTUAL,
+    INVOKE_STATIC,
+    INVOKE_SPECIAL,
+    NEW_INVOKE_SPECIAL,
+    INVOKE_INTERFACE,
+}
+
+data class MethodHandle(
+    val kind: HandleKind,
+    val owner: ClassType,
+    val name: String,
+    val descriptor: String,
+    val isInterface: Boolean,
+) {
+    val isFieldHandle get() = kind in setOf(HandleKind.GET_FIELD, HandleKind.GET_STATIC, HandleKind.PUT_FIELD, HandleKind.PUT_STATIC)
+    val isMethodHandle get() = !isFieldHandle
+}
+
+sealed interface BootstrapArgument {
+    data class IntArg(val value: Int) : BootstrapArgument
+    data class FloatArg(val value: Float) : BootstrapArgument
+    data class LongArg(val value: Long) : BootstrapArgument
+    data class DoubleArg(val value: Double) : BootstrapArgument
+    data class StringArg(val value: String) : BootstrapArgument
+    data class TypeArg(val value: ClassType) : BootstrapArgument
+    data class HandleArg(val value: MethodHandle): BootstrapArgument
+    data class DynamicArg(val value: ConstantDynamic) : BootstrapArgument
+}
+
+data class ConstantDynamic(
+    val name: String,
+    val type: Type,
+    val bootstrapMethod: MethodHandle,
+    val bootstrapArguments: List<BootstrapArgument>
+)
 
 data class NewInstruction(val type: ClassType) : Instruction
 

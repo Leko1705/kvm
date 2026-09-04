@@ -8,6 +8,7 @@ import com.leko.kvm.ConcreteMethod
 import com.leko.kvm.FieldFlags
 import com.leko.kvm.FieldSignature
 import com.leko.kvm.KvmAnnotation
+import com.leko.kvm.MethodDescriptor
 import com.leko.kvm.MethodFlags
 import com.leko.kvm.MethodSignature
 import com.leko.kvm.PresentMethodDeclaration
@@ -236,22 +237,23 @@ class MethodBuilderImpl internal constructor(
     override fun build(): PresentMethodDeclaration {
 
         val signature = MethodSignature(
-            thisType,
             name,
-            parameters.values.map { it.type },
-            returnType
+            MethodDescriptor(
+                parameters.values.map { it.type },
+                returnType
+            )
         )
 
         val builder = this.bodyBuilder
         return if (builder != null) {
             if (flags.isNative) throw IllegalStateException("Native method must not have a body")
             val body = Sequence(builder.statements)
-            ConcreteMethod(signature, flags, annotations, body.toMethodBody())
+            ConcreteMethod(thisType, signature, flags, annotations, body.toMethodBody())
         }
         else {
             if (!isAbstract && !flags.isNative)
                 throw IllegalStateException("Missing method body for $name")
-            AbstractMethod(signature, flags, annotations)
+            AbstractMethod(thisType, signature, flags, annotations)
         }
     }
 
@@ -482,13 +484,7 @@ class MethodBodyBuilderImpl internal constructor(
         if (realStatements.isNotEmpty()) {
             throw IllegalStateException("superCall() must be the first statement of the constructor")
         }
-        val sig = MethodSignature(
-            superClass,
-            "<init>",
-            arguments.map { it.type },
-            VoidType
-        )
-        statements.add(Eval(CallSpecial(null, sig, arguments.toList())))
+        statements.add(Eval(CallSpecial(THIS, superClass, "<init>", arguments.toList(), VoidType)))
         return this
     }
 

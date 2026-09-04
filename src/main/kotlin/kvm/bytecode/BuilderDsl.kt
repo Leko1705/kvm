@@ -1112,24 +1112,24 @@ class AsmGeneratorScope internal constructor(private val flow: ControlFlowBuilde
         flow.instruction(PutFieldInstruction(it))
     }
 
-    val INVOKEVIRTUAL: (MethodSignature) -> Unit get() = {
-        flow.instruction(InvokeVirtualInstruction(it))
+    val INVOKEVIRTUAL: (ClassType, MethodSignature) -> Unit get() = { t, s ->
+        flow.instruction(InvokeVirtualInstruction(t, s))
     }
 
-    val INVOKESPECIAL: (MethodSignature) -> Unit get() = {
-        flow.instruction(InvokeSpecialInstruction(it))
+    val INVOKESPECIAL: (ClassType, MethodSignature) -> Unit get() = { t, s ->
+        flow.instruction(InvokeSpecialInstruction(t, s))
     }
 
-    val INVOKESTATIC: (MethodSignature) -> Unit get() = {
-        flow.instruction(InvokeStaticInstruction(it))
+    val INVOKESTATIC: (ClassType, MethodSignature) -> Unit get() = { t, s ->
+        flow.instruction(InvokeStaticInstruction(t, s))
     }
 
-    val INVOKEINTERFACE: (MethodSignature) -> Unit get() = {
-        flow.instruction(InvokeInterfaceInstruction(it))
+    val INVOKEINTERFACE: (ClassType, MethodSignature) -> Unit get() = { t, s ->
+        flow.instruction(InvokeInterfaceInstruction(t, s))
     }
 
-    val INVOKEDYNAMIC: (MethodSignature) -> Unit get() = {
-        flow.instruction(InvokeDynamicInstruction(it))
+    val INVOKEDYNAMIC: (MethodSignature, MethodHandle, List<BootstrapArgument>) -> Unit get() = { m, h, b ->
+        flow.instruction(InvokeDynamicInstruction(m, h, b))
     }
 
     val NEW: (ClassType) -> Unit get() = {

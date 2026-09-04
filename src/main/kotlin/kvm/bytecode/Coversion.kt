@@ -8,7 +8,7 @@ import com.leko.kvm.typing.ClassType
 fun ConcreteClass.bytes(generator: BytecodeGenerator = ASM): ByteArray =
     generator.generate(this)
 
-fun JBCTree.toMethodBody(): MethodBody {
+fun JBCTree.toMethodBody(autoTerminate: Boolean = true): MethodBody {
     val instructions = mutableListOf<Instruction>()
     val exceptionHandlers = mutableListOf<ExceptionHandler>()
 
@@ -25,6 +25,10 @@ fun JBCTree.toMethodBody(): MethodBody {
     }
 
     this.generate(Generator())
+    val lastInst = instructions.lastOrNull()
+    if (lastInst !is ReturnInstruction && lastInst !is AThrowInstruction) {
+        instructions.add(VReturnInstruction)
+    }
     return MethodBody(instructions, exceptionHandlers)
 }
 

@@ -1,6 +1,6 @@
 package com.leko.kvm.bytecode
 
-import com.leko.kvm.readable
+import com.leko.kvm.readableJvm
 
 
 val Instruction.opcode: Byte?
@@ -187,6 +187,18 @@ val Instruction.opcode: Byte?
         is LineNumberInstruction -> null
     }
 
+val HandleKind.opcode: Byte
+    get() = when (this) {
+        HandleKind.GET_FIELD -> 1
+        HandleKind.GET_STATIC -> 2
+        HandleKind.PUT_FIELD -> 3
+        HandleKind.PUT_STATIC -> 4
+        HandleKind.INVOKE_VIRTUAL -> 5
+        HandleKind.INVOKE_STATIC -> 6
+        HandleKind.INVOKE_SPECIAL -> 7
+        HandleKind.NEW_INVOKE_SPECIAL -> 8
+        HandleKind.INVOKE_INTERFACE -> 9
+    }
 
 fun Instruction.readable(): String = when (this) {
     NopInstruction -> "nop"
@@ -350,17 +362,17 @@ fun Instruction.readable(): String = when (this) {
     VReturnInstruction -> "return"
 
     // fields
-    is GetStaticInstruction -> "getstatic     ${field.readable()}"
-    is PutStaticInstruction -> "putstatic     ${field.readable()}"
-    is GetFieldInstruction -> "getfield      ${field.readable()}"
-    is PutFieldInstruction -> "putfield      ${field.readable()}"
+    is GetStaticInstruction -> "getstatic     ${field.readableJvm()}"
+    is PutStaticInstruction -> "putstatic     ${field.readableJvm()}"
+    is GetFieldInstruction -> "getfield      ${field.readableJvm()}"
+    is PutFieldInstruction -> "putfield      ${field.readableJvm()}"
 
     // invocation
-    is InvokeVirtualInstruction -> "invokevirtual ${method.readable()}"
-    is InvokeSpecialInstruction -> "invokespecial ${method.readable()}"
-    is InvokeStaticInstruction -> "invokestatic  ${method.readable()}"
-    is InvokeInterfaceInstruction -> "invokeinterface ${method.readable()}"
-    is InvokeDynamicInstruction -> "invokedynamic ${method.readable()}"
+    is InvokeVirtualInstruction -> "invokevirtual ${method.readableJvm()}"
+    is InvokeSpecialInstruction -> "invokespecial ${method.readableJvm()}"
+    is InvokeStaticInstruction -> "invokestatic  ${method.readableJvm()}"
+    is InvokeInterfaceInstruction -> "invokeinterface ${method.readableJvm()}"
+    is InvokeDynamicInstruction -> "invokedynamic ${bootstrapMethod.owner.jvmName}${bootstrapMethod.descriptor}"
 
     // object/array/type ops
     is NewInstruction -> "new           $type"

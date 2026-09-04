@@ -3,6 +3,8 @@ package com.leko.kvm.bytecode
 import com.leko.kvm.*
 import com.leko.kvm.typing.*
 import org.objectweb.asm.*
+import java.lang.invoke.MethodHandle
+import kotlin.reflect.typeOf
 import org.objectweb.asm.Label as AsmLabel
 import org.objectweb.asm.Type as AsmType
 
@@ -300,22 +302,22 @@ object ASM : BytecodeGenerator, BytecodeParser {
 
             // ── method invocation ────────────────────────────────────────────
             is InvokeVirtualInstruction -> mv.visitMethodInsn(
-                Opcodes.INVOKEVIRTUAL, instruction.method.owner.jvmName, instruction.method.name,
+                Opcodes.INVOKEVIRTUAL, instruction.owner.jvmName, instruction.method.name,
                 buildMethodDescriptor(instruction.method), false,
             )
 
             is InvokeSpecialInstruction -> mv.visitMethodInsn(
-                Opcodes.INVOKESPECIAL, instruction.method.owner.jvmName, instruction.method.name,
+                Opcodes.INVOKESPECIAL, instruction.owner.jvmName, instruction.method.name,
                 buildMethodDescriptor(instruction.method), false,
             )
 
             is InvokeStaticInstruction -> mv.visitMethodInsn(
-                Opcodes.INVOKESTATIC, instruction.method.owner.jvmName, instruction.method.name,
+                Opcodes.INVOKESTATIC, instruction.owner.jvmName, instruction.method.name,
                 buildMethodDescriptor(instruction.method), false,
             )
 
             is InvokeInterfaceInstruction -> mv.visitMethodInsn(
-                Opcodes.INVOKEINTERFACE, instruction.method.owner.jvmName, instruction.method.name,
+                Opcodes.INVOKEINTERFACE, instruction.owner.jvmName, instruction.method.name,
                 buildMethodDescriptor(instruction.method), true,
             )
 
@@ -409,10 +411,10 @@ object ASM : BytecodeGenerator, BytecodeParser {
         else -> error("Unsupported ASM type sort: ${t.sort} (${t.descriptor})")
     }
 
-    private fun descriptorToMethodSignature(owner: ClassType, name: String, descriptor: String): MethodSignature {
+    private fun descriptorToMethodSignature(name: String, descriptor: String): MethodSignature {
         val paramTypes = AsmType.getArgumentTypes(descriptor).map { asmTypeToDomain(it) }
         val returnType = asmTypeToDomain(AsmType.getReturnType(descriptor))
-        return MethodSignature(owner, name, paramTypes, returnType)
+        return MethodSignature(name, MethodDescriptor(paramTypes, returnType))
     }
 
     private fun descriptorToFieldType(descriptor: String): Type = asmTypeToDomain(AsmType.getType(descriptor))
@@ -500,11 +502,11 @@ object ASM : BytecodeGenerator, BytecodeParser {
             signature: String?,
             exceptions: Array<out String>?,
         ): MethodVisitor {
-            val methodSignature = descriptorToMethodSignature(classType, name, descriptor)
+            val methodSignature = descriptorToMethodSignature(name, descriptor)
             val flags = MethodFlags(access)
             val isAbstractOrNative = flags.isAbstract || flags.isNative
 
-            return KvmMethodVisitor(methodSignature, flags, isAbstractOrNative) { method ->
+            return KvmMethodVisitor(classType, methodSignature, flags, isAbstractOrNative) { method ->
                 methods += method
             }
         }
@@ -523,6 +525,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
 // ── method body collection ────────────────────────────────────────────
 
     private class KvmMethodVisitor(
+        private val owner: ClassType,
         private val signature: MethodSignature,
         private val flags: MethodFlags,
         private val isAbstractOrNative: Boolean,
@@ -742,12 +745,12 @@ object ASM : BytecodeGenerator, BytecodeParser {
             isInterface: Boolean,
         ) {
             val ownerType = ClassType(internalToDotted(owner))
-            val methodSig = descriptorToMethodSignature(ownerType, name, descriptor)
+            val methodSig = descriptorToMethodSignature(name, descriptor)
             instructions += when (opcode) {
-                Opcodes.INVOKEVIRTUAL -> InvokeVirtualInstruction(methodSig)
-                Opcodes.INVOKESPECIAL -> InvokeSpecialInstruction(methodSig)
-                Opcodes.INVOKESTATIC -> InvokeStaticInstruction(methodSig)
-                Opcodes.INVOKEINTERFACE -> InvokeInterfaceInstruction(methodSig)
+                Opcodes.INVOKEVIRTUAL -> InvokeVirtualInstruction(ownerType, methodSig)
+                Opcodes.INVOKESPECIAL -> InvokeSpecialInstruction(ownerType, methodSig)
+                Opcodes.INVOKESTATIC -> InvokeStaticInstruction(ownerType, methodSig)
+                Opcodes.INVOKEINTERFACE -> InvokeInterfaceInstruction(ownerType, methodSig)
                 else -> error("Unhandled method opcode: $opcode")
             }
         }
@@ -755,17 +758,50 @@ object ASM : BytecodeGenerator, BytecodeParser {
         override fun visitInvokeDynamicInsn(
             name: String,
             descriptor: String,
-            bootstrapMethodHandle: org.objectweb.asm.Handle,
+            bootstrapMethodHandle: Handle,
             vararg bootstrapMethodArguments: Any,
         ) {
-            // InvokeDynamicInstruction currently only carries a MethodSignature (mirroring
-            // InvocationInstruction's shape) with no room for the bootstrap method handle/args.
-            // Using a synthetic "owner" type since invokedynamic has no real receiver class.
-            // Extend InvokeDynamicInstruction with bootstrap-handle fields for full fidelity.
-            val syntheticOwner = ClassType("invokedynamic")
-            val methodSig = descriptorToMethodSignature(syntheticOwner, name, descriptor)
-            instructions += InvokeDynamicInstruction(methodSig)
+            instructions += InvokeDynamicInstruction(
+                callSiteSignature = descriptorToMethodSignature(name, descriptor),
+                bootstrapMethod = bootstrapMethodHandle.toMethodHandle(),
+                bootstrapArguments = bootstrapMethodArguments.map { it.toBootstrapArgument() }
+            )
         }
+
+        private fun Handle.toMethodHandle(): com.leko.kvm.bytecode.MethodHandle {
+            val kind = HandleKind.entries.firstOrNull { it.opcode.toInt() == tag }
+            if (kind == null) {
+                error("unexpected Method Handle Kind: $tag")
+            }
+            return MethodHandle(
+                kind = kind,
+                owner = ClassType(owner.replace("/", ".")),
+                name = name,
+                descriptor = desc,
+                isInterface = isInterface,
+            )
+        }
+
+        private fun Any.toBootstrapArgument(): BootstrapArgument = when (this) {
+            is Int -> BootstrapArgument.IntArg(this)
+            is Float -> BootstrapArgument.FloatArg(this)
+            is Long -> BootstrapArgument.LongArg(this)
+            is Double -> BootstrapArgument.DoubleArg(this)
+            is String -> BootstrapArgument.StringArg(this)
+            is AsmType -> BootstrapArgument.TypeArg(className.parseJvmName() as ClassType)
+            is Handle -> BootstrapArgument.HandleArg(this.toMethodHandle())
+            is org.objectweb.asm.ConstantDynamic -> BootstrapArgument.DynamicArg(this.toConstantDynamicModel())
+            else -> error("Unsupported bootstrap argument type: ${this::class.qualifiedName}")
+        }
+
+        private fun org.objectweb.asm.ConstantDynamic.toConstantDynamicModel(): ConstantDynamic =
+            ConstantDynamic(
+                name = name,
+                type = descriptor.parseJavaName(),
+                bootstrapMethod = bootstrapMethod.toMethodHandle(),
+                bootstrapArguments = (0 ..< bootstrapMethodArgumentCount)
+                    .map { getBootstrapMethodArgument(it).toBootstrapArgument() }
+            )
 
         override fun visitJumpInsn(opcode: Int, l: AsmLabel) {
             val target = label(l)
@@ -823,9 +859,10 @@ object ASM : BytecodeGenerator, BytecodeParser {
 
         override fun visitEnd() {
             val method = if (isAbstractOrNative) {
-                AbstractMethod(signature, flags, annotations)
+                AbstractMethod(owner, signature, flags, annotations)
             } else {
                 ConcreteMethod(
+                    owner = owner,
                     signature = signature,
                     accessFlags = flags,
                     annotations = annotations,

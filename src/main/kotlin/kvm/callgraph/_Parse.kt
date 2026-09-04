@@ -14,6 +14,8 @@ import com.leko.kvm.typing.ClassType
 import com.leko.kvm.typing.VoidType
 import com.leko.kvm.Project
 import com.leko.kvm.classFiles
+import com.leko.kvm.parameterTypes
+import com.leko.kvm.returnType
 
 private fun buildCha(classFiles: List<ClassDeclaration>, entryPoints: Set<MethodSignature>): CallGraph {
     val hierarchy = ClassHierarchy(classFiles)
@@ -88,11 +90,11 @@ private fun resolveTargets(
     instruction: InvocationInstruction,
     instantiatedTypes: Set<ClassType>?, // null = CHA (no filtering), non-null = RTA
 ): List<MethodDeclaration> = when (instruction) {
-    is InvokeStaticInstruction, is InvokeSpecialInstruction ->
-        listOf(hierarchy.resolveMethod(instruction.method.owner, instruction.method))
+    is DirectInvocationInstruction ->
+        listOf(hierarchy.resolveMethod(instruction.owner, instruction.method))
 
-    is InvokeVirtualInstruction, is InvokeInterfaceInstruction -> {
-        val candidates = hierarchy.subtypes(instruction.method.owner)
+    is IndirectInvocationInstruction -> {
+        val candidates = hierarchy.subtypes(instruction.owner)
         val filtered = instantiatedTypes?.let { candidates.filter { t -> t in it } } ?: candidates
         // fall back to unfiltered if RTA filters out everything (e.g. an interface type itself)
         (filtered.ifEmpty { candidates })

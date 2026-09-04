@@ -5,17 +5,37 @@ import com.leko.kvm.bytecode.Instruction
 import com.leko.kvm.typing.ClassType
 import com.leko.kvm.typing.Type
 
-data class MethodSignature(
-    val owner: ClassType,
-    val name: String,
+
+data class MethodDescriptor(
     val parameterTypes: List<Type>,
     val returnType: Type,
 )
 
-fun MethodSignature.readable(): String =
-    "${owner.jvmName}.$name:${parameterTypes.joinToString("", "(", ")") { it.jvmName }}${returnType.jvmName}"
+fun MethodDescriptor.readableJvm(): String =
+    "${parameterTypes.joinToString("", "(", ")") { it.jvmName }}${returnType.jvmName}"
+
+fun MethodDescriptor.readableKotlin(): String =
+    "${parameterTypes.joinToString("", "(", ")") { it.jvmName }}: ${returnType.jvmName}"
+
+
+data class MethodSignature(
+    val name: String,
+    val descriptor: MethodDescriptor
+)
+
+val MethodSignature.parameterTypes: List<Type> get() = descriptor.parameterTypes
+
+val MethodSignature.returnType: Type get() = descriptor.returnType
+
+fun MethodSignature.readableJvm(): String = "$name${descriptor.readableJvm()}"
+
+fun MethodSignature.readableKotlin(): String = "$name${descriptor.readableKotlin()}"
+
+fun MethodSignature.readableJava(): String =
+    "${returnType.jvmName} $name${parameterTypes.joinToString("", "(", ")") { it.javaName }}"
 
 sealed interface MethodDeclaration : Element {
+    val owner: ClassType
     val signature: MethodSignature
 }
 
@@ -25,6 +45,7 @@ sealed interface PresentMethodDeclaration : MethodDeclaration {
 }
 
 class ConcreteMethod(
+    override val owner: ClassType,
     override val signature: MethodSignature,
     override val accessFlags: MethodFlags,
     override val annotations: List<KvmAnnotation>,
@@ -32,11 +53,12 @@ class ConcreteMethod(
 ) : PresentMethodDeclaration {
 
     constructor(
+        owner: ClassType,
         signature: MethodSignature,
         accessFlags: MethodFlags,
         annotations: List<KvmAnnotation>,
         body: MethodBody
-    ) : this(signature, accessFlags, annotations, { body })
+    ) : this(owner, signature, accessFlags, annotations, { body })
 
     val body: MethodBody by lazy(bodySupplier)
 
@@ -47,7 +69,7 @@ class ConcreteMethod(
                 && this.annotations == other.annotations
 
     override fun hashCode(): Int = signature.hashCode()
-    override fun toString(): String = signature.readable()
+    override fun toString(): String = signature.readableJvm()
 }
 
 class MethodBody(
@@ -62,15 +84,17 @@ class MethodBody(
 }
 
 data class AbstractMethod(
+    override val owner: ClassType,
     override val signature: MethodSignature,
     override val accessFlags: MethodFlags,
     override val annotations: List<KvmAnnotation>,
 ) : PresentMethodDeclaration {
-    override fun toString(): String = signature.readable()
+    override fun toString(): String = signature.readableJvm()
 }
 
 data class PhantomMethod(
+    override val owner: ClassType,
     override val signature: MethodSignature
 ) : MethodDeclaration {
-    override fun toString(): String = signature.readable()
+    override fun toString(): String = signature.readableJvm()
 }

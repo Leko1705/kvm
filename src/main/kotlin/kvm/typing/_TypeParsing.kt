@@ -1,17 +1,5 @@
 package com.leko.kvm.typing
 
-import com.leko.kvm.typing.ArrayType
-import com.leko.kvm.typing.BooleanType
-import com.leko.kvm.typing.ByteType
-import com.leko.kvm.typing.CharType
-import com.leko.kvm.typing.ClassType
-import com.leko.kvm.typing.DoubleType
-import com.leko.kvm.typing.FloatType
-import com.leko.kvm.typing.IntType
-import com.leko.kvm.typing.LongType
-import com.leko.kvm.typing.ShortType
-import com.leko.kvm.typing.Type
-import com.leko.kvm.typing.VoidType
 import kotlin.reflect.KClass
 
 

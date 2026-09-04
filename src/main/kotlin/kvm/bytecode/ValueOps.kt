@@ -192,23 +192,20 @@ fun KClass<*>.field(name: String, type: KClass<*>): Ptr {
 }
 
 
-fun Value.call(name: String): Call =
-    Call(
+fun Value.call(name: String): CallVirtual =
+    CallVirtual(
         this,
-        MethodSignature(
-            this.type as ClassType,
-            name,
-            emptyList(),
-            VoidType,
-        ),
+        this.type as ClassType,
+        name,
         emptyList(),
+        VoidType,
     )
 
-fun Call.withArgs(vararg args: Value): Call = this.copy(args = args.toList())
+fun CallVirtual.withArgs(vararg args: Value): CallVirtual = this.copy(args = args.toList())
 
-fun Call.returns(type: Type): Call = this.copy(signature = signature.copy(returnType = type))
+fun CallVirtual.returns(type: Type): CallVirtual = this.copy(returnType = type)
 
-fun Call.returns(type: KClass<*>): Call = returns(type.toType())
+fun CallVirtual.returns(type: KClass<*>): CallVirtual = returns(type.toType())
 
 fun ClassType.call(name: String): StaticCall = StaticCall(this, name, emptyList(), VoidType)
 
