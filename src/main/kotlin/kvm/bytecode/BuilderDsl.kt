@@ -58,7 +58,8 @@ annotation class BytecodeGen
 @BytecodeGen
 class ClassMemberGeneratorScope internal constructor(
     private val builder: ClassBuilder,
-    private var methodFlags: MethodFlags
+    private var methodFlags: MethodFlags,
+    private val annotationApplier: List<ClassBuilderScope.MemberAnnotationPrepare.AnnotationApplier>
 ) {
 
     private var type: Type? = null
@@ -137,7 +138,7 @@ class ClassMemberGeneratorScope internal constructor(
         if (methodFlags.isAbstract && methodFlags.isNative) {
             throw IllegalStateException("abstract method can not be native")
         }
-        return MethodBodyPreparer(name)
+        return MethodBodyPreparer(name, annotationApplier)
     }
 
     fun field(name: String) {
@@ -145,7 +146,9 @@ class ClassMemberGeneratorScope internal constructor(
             throw IllegalStateException("can not attach method flags to field")
         }
         val ty = type ?: throw IllegalStateException("field type is not defined")
-        builder.field(name, ty, fieldFlags)
+        val fb = builder.field(name, ty, fieldFlags)
+        annotationApplier.forEach { it.apply(fb) }
+        TODO("bb is ClassBuilder and not FieldBuilder!!!")
     }
 
     val constructor: MethodBodyPreparer get() {
@@ -158,18 +161,24 @@ class ClassMemberGeneratorScope internal constructor(
         return method("<init>")
     }
 
-    inner class MethodBodyPreparer(val name: String) {
+    inner class MethodBodyPreparer(
+        val name: String,
+        private val annotationApplier: List<ClassBuilderScope.MemberAnnotationPrepare.AnnotationApplier>
+    ) {
 
-        operator fun invoke(vararg params: Pair<String, Type>, block: MethodBodyBuilderScope.() -> Unit) {
+        operator fun invoke(vararg params: Pair<String, Type>, block: (MethodBodyBuilderScope.() -> Unit)? = null) {
             val mb = builder.method(name, type ?: VoidType)
+            annotationApplier.forEach { it.apply(mb) }
             mb.flags = methodFlags
             val paramBuilder = mb.parameters()
             for ((name, type) in params) {
                 paramBuilder.parameter(name, type)
             }
-            val (flow, values) = mb.body()
-            val scope = MethodBodyBuilderScope(flow, values)
-            scope.also(block)
+            if (block != null) {
+                val (flow, values) = mb.body()
+                val scope = MethodBodyBuilderScope(flow, values)
+                scope.also(block)
+            }
         }
 
     }
@@ -211,46 +220,67 @@ class ClassBuilderScope internal constructor(private val builder: ClassBuilder) 
 
     inner class MemberAnnotationPrepare {
 
-        operator fun get(name: String): ConcreteMemberAnnotationPrepare = ConcreteMemberAnnotationPrepare(builder.annotation(name))
+        inner class AnnotationApplier(private val name: String) {
+            private val modifiers = mutableListOf<(AnnotationBuilder) -> Unit>()
+            fun apply(annotateable: Annotateable) {
+                val ab = annotateable.annotation(name)
+                modifiers.forEach { it(ab) }
+            }
+            internal fun put(modifier: (AnnotationBuilder) -> Unit) {
+                modifiers.add(modifier)
+            }
+        }
+
+        private val annotationPrepares = mutableListOf<AnnotationApplier>()
+
+        operator fun get(name: String): ConcreteMemberAnnotationPrepare = ConcreteMemberAnnotationPrepare(name)
 
 
-        inner class ConcreteMemberAnnotationPrepare(private val annoBuilder: AnnotationBuilder) {
+        inner class ConcreteMemberAnnotationPrepare(name: String) {
+            private val applier = AnnotationApplier(name)
 
-            val public: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PUBLIC)
-            val private: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PRIVATE)
-            val protected: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PROTECTED)
+            init {
+                annotationPrepares.add(applier)
+            }
+
+            val public: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PUBLIC, annotationPrepares)
+            val private: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PRIVATE, annotationPrepares)
+            val protected: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PROTECTED, annotationPrepares)
 
             val annotation: MemberAnnotationPrepare get() = this@MemberAnnotationPrepare
 
             operator fun invoke(vararg args: Pair<String, Any?>): ConcreteMemberAnnotationPrepare {
-                for ((field, value) in args) {
-                    when (value) {
-                        is Byte -> annoBuilder.put(field, value)
-                        is Char -> annoBuilder.put(field, value)
-                        is Short -> annoBuilder.put(field, value)
-                        is Int -> annoBuilder.put(field, value)
-                        is Long -> annoBuilder.put(field, value)
-                        is Float -> annoBuilder.put(field, value)
-                        is Double -> annoBuilder.put(field, value)
-                        is String -> annoBuilder.put(field, value)
-                        is Boolean -> annoBuilder.put(field, value)
-                        is ClassType -> annoBuilder.put(field, value)
-                        is ByteArray -> annoBuilder.put(field, value)
-                        is CharArray -> annoBuilder.put(field, value)
-                        is ShortArray -> annoBuilder.put(field, value)
-                        is IntArray -> annoBuilder.put(field, value)
-                        is LongArray -> annoBuilder.put(field, value)
-                        is FloatArray -> annoBuilder.put(field, value)
-                        is DoubleArray -> annoBuilder.put(field, value)
-                        is BooleanArray -> annoBuilder.put(field, value)
-                        is Array<*> -> {
-                            when {
-                                value.isArrayOf<String>() -> annoBuilder.put(field, value as Array<String>)
-                                value.isArrayOf<ClassType>() -> annoBuilder.put(field, value as Array<ClassType>)
-                                else -> error("Can not store ${value.contentToString()} in annotation")
+                applier.put { annoBuilder ->
+                    for ((field, value) in args) {
+                        when (value) {
+                            is Byte -> annoBuilder.put(field, value)
+                            is Char -> annoBuilder.put(field, value)
+                            is Short -> annoBuilder.put(field, value)
+                            is Int -> annoBuilder.put(field, value)
+                            is Long -> annoBuilder.put(field, value)
+                            is Float -> annoBuilder.put(field, value)
+                            is Double -> annoBuilder.put(field, value)
+                            is String -> annoBuilder.put(field, value)
+                            is Boolean -> annoBuilder.put(field, value)
+                            is ClassType -> annoBuilder.put(field, value)
+                            is ByteArray -> annoBuilder.put(field, value)
+                            is CharArray -> annoBuilder.put(field, value)
+                            is ShortArray -> annoBuilder.put(field, value)
+                            is IntArray -> annoBuilder.put(field, value)
+                            is LongArray -> annoBuilder.put(field, value)
+                            is FloatArray -> annoBuilder.put(field, value)
+                            is DoubleArray -> annoBuilder.put(field, value)
+                            is BooleanArray -> annoBuilder.put(field, value)
+                            is Array<*> -> {
+                                when {
+                                    value.isArrayOf<String>() -> annoBuilder.put(field, value as Array<String>)
+                                    value.isArrayOf<ClassType>() -> annoBuilder.put(field, value as Array<ClassType>)
+                                    else -> error("Can not store ${value.contentToString()} in annotation")
+                                }
                             }
+
+                            else -> error("Can not store $value in annotation")
                         }
-                        else -> error("Can not store $value in annotation")
                     }
                 }
                 return this
@@ -260,11 +290,11 @@ class ClassBuilderScope internal constructor(private val builder: ClassBuilder) 
 
     val annotation: MemberAnnotationPrepare get() = MemberAnnotationPrepare()
 
-    val public: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PUBLIC)
+    val public: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PUBLIC, emptyList())
 
-    val private: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PRIVATE)
+    val private: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PRIVATE, emptyList())
 
-    val protected: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PROTECTED)
+    val protected: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PROTECTED, emptyList())
 
     fun static(block: MethodBodyBuilderScope.() -> Unit) {
         val (flow, values) = builder.static()

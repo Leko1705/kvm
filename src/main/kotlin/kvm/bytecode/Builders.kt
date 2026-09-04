@@ -70,7 +70,7 @@ interface CompletableAnnotationBuilder: AnnotationBuilder {
 /**
  * Builder for building class files
  */
-interface ClassBuilder {
+interface ClassBuilder : Annotateable {
 
     /**
      * The flags of the generated class
@@ -90,7 +90,7 @@ interface ClassBuilder {
     /**
      * Attaches an annotation to the generated class
      */
-    fun annotation(name: String): AnnotationBuilder
+    override fun annotation(name: String): AnnotationBuilder
 
     /**
      * Creates a builder with which a new method can be defined for this class
@@ -129,7 +129,7 @@ interface CompletableClassBuilder: ClassBuilder {
 /**
  * Builder for defining the signature and implementation for a method.
  */
-interface MethodBuilder {
+interface MethodBuilder : Annotateable {
 
     /**
      * The flags of this method.
@@ -139,7 +139,7 @@ interface MethodBuilder {
     /**
      * Attaches an annotation to the generated method
      */
-    fun annotation(name: String): AnnotationBuilder
+    override fun annotation(name: String): AnnotationBuilder
 
     /**
      * The parameters of this method.
