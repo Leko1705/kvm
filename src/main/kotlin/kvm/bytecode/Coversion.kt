@@ -25,9 +25,11 @@ fun JBCTree.toMethodBody(autoTerminate: Boolean = true): MethodBody {
     }
 
     this.generate(Generator())
-    val lastInst = instructions.lastOrNull()
-    if (lastInst !is ReturnInstruction && lastInst !is AThrowInstruction) {
-        instructions.add(VReturnInstruction)
+    if (autoTerminate) {
+        val lastInst = instructions.lastOrNull()
+        if (lastInst !is ReturnInstruction && lastInst !is AThrowInstruction) {
+            instructions.add(VReturnInstruction)
+        }
     }
     return MethodBody(instructions, exceptionHandlers)
 }
