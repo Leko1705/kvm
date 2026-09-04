@@ -2,6 +2,7 @@ package com.leko.kvm.bytecode
 
 import com.leko.kvm.ClassFlags
 import com.leko.kvm.ConcreteClass
+import com.leko.kvm.ConcreteField
 import com.leko.kvm.FieldFlags
 import com.leko.kvm.KvmAnnotation
 import com.leko.kvm.MethodFlags
@@ -64,8 +65,8 @@ interface CompletableAnnotationBuilder: AnnotationBuilder {
      */
     fun build(): KvmAnnotation
 
-
 }
+
 
 /**
  * Builder for building class files
@@ -110,7 +111,7 @@ interface ClassBuilder : Annotateable {
     /**
      * Adds a field to this class
      */
-    fun field(name: String, type: Type, accessFlags: FieldFlags = FieldFlags.EMPTY): ClassBuilder
+    fun field(name: String, type: Type, accessFlags: FieldFlags = FieldFlags.EMPTY): FieldBuilder
 
 }
 
@@ -124,6 +125,22 @@ interface CompletableClassBuilder: ClassBuilder {
      */
     fun build(): ConcreteClass
 
+}
+
+/**
+ * Builder for customizing a registered field.
+ */
+interface FieldBuilder : Annotateable {
+
+    override fun annotation(name: String): AnnotationBuilder
+
+}
+
+interface CompletableFieldBuilder : FieldBuilder {
+    /**
+     * Completes the built field.
+     */
+    fun build(): ConcreteField
 }
 
 /**

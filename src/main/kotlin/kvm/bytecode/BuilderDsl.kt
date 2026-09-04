@@ -148,7 +148,6 @@ class ClassMemberGeneratorScope internal constructor(
         val ty = type ?: throw IllegalStateException("field type is not defined")
         val fb = builder.field(name, ty, fieldFlags)
         annotationApplier.forEach { it.apply(fb) }
-        TODO("bb is ClassBuilder and not FieldBuilder!!!")
     }
 
     val constructor: MethodBodyPreparer get() {
@@ -302,9 +301,6 @@ class ClassBuilderScope internal constructor(private val builder: ClassBuilder) 
         scope.also(block)
     }
 
-    fun field(name: String, type: Type, accessFlags: FieldFlags = FieldFlags.EMPTY) {
-        builder.field(name, type, accessFlags)
-    }
 }
 
 

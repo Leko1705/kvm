@@ -173,18 +173,31 @@ class ClassBuilderImpl internal constructor(private val thisType: ClassType): Co
         return method("<clinit>", VoidType).body()
     }
 
-    override fun field(name: String, type: Type, accessFlags: FieldFlags): ClassBuilder {
-        val fieldDecl = ConcreteField(
-            FieldSignature(
-                thisType,
-                name,
-                type
-            ),
-            accessFlags,
-            annotations
-        )
-        fields.add(fieldDecl)
-        return this
+    override fun field(name: String, type: Type, accessFlags: FieldFlags): FieldBuilder {
+        return object : CompletableFieldBuilder {
+            private val annotations = mutableListOf<KvmAnnotation>()
+
+            override fun annotation(name: String): AnnotationBuilder {
+                val builder = AnnotationBuilderImpl(name)
+                val anno = builder.build()
+                annotations.add(anno)
+                return builder
+            }
+
+            override fun build(): ConcreteField {
+                val fieldDecl = ConcreteField(
+                    FieldSignature(
+                        thisType,
+                        name,
+                        type
+                    ),
+                    accessFlags,
+                    annotations
+                )
+                fields.add(fieldDecl)
+                return fieldDecl
+            }
+        }
     }
 
     override fun build(): ConcreteClass {
