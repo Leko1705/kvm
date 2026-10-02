@@ -8,6 +8,7 @@ import com.leko.kvm.FieldSignature
 import com.leko.kvm.MethodFlags
 import com.leko.kvm.MethodSignature
 import com.leko.kvm.typing.ClassType
+import com.leko.kvm.typing.ReferenceType
 import com.leko.kvm.typing.Type
 import com.leko.kvm.typing.VoidType
 import kotlin.reflect.KProperty
@@ -1178,11 +1179,11 @@ class AsmGeneratorScope internal constructor(private val flow: ControlFlowBuilde
         flow.instruction(AThrowInstruction)
     }
 
-    val CHECKCAST: (ClassType) -> Unit get() = {
+    val CHECKCAST: (ReferenceType) -> Unit get() = {
         flow.instruction(CheckCastInstruction(it))
     }
 
-    val INSTANCEOF: (ClassType) -> Unit get() = {
+    val INSTANCEOF: (ReferenceType) -> Unit get() = {
         flow.instruction(InstanceOfInstruction(it))
     }
 

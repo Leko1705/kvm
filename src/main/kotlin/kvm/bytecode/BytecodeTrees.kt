@@ -13,6 +13,7 @@ import com.leko.kvm.typing.FloatType
 import com.leko.kvm.typing.IntType
 import com.leko.kvm.typing.LongType
 import com.leko.kvm.typing.NullType
+import com.leko.kvm.typing.ReferenceType
 import com.leko.kvm.typing.ShortType
 import com.leko.kvm.typing.Type
 import com.leko.kvm.typing.VoidType
@@ -97,7 +98,7 @@ data class ArrayLength(val array: Value) : Value {
     }
 }
 
-data class Cast(val value: Value, override val type: ClassType) : Value {
+data class Cast(val value: Value, override val type: ReferenceType) : Value {
     override fun generate(generator: InstructionGenerator) {
         value.generate(generator)
         generator.emit(CheckCastInstruction(type))
@@ -208,7 +209,7 @@ data class StringValue(val value: String) : Value {
 
 data class InstanceOf(
     val value: Value,
-    val checkedType: ClassType
+    val checkedType: ReferenceType
 ): Value {
     override val type: Type = BooleanType
     override fun generate(generator: InstructionGenerator) {

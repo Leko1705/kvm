@@ -530,9 +530,9 @@ data object ArrayLengthInstruction: Instruction
 
 data object AThrowInstruction : Instruction
 
-data class CheckCastInstruction(val type: ClassType) : Instruction
+data class CheckCastInstruction(val type: ReferenceType) : Instruction
 
-data class InstanceOfInstruction(val type: ClassType) : Instruction
+data class InstanceOfInstruction(val type: ReferenceType) : Instruction
 
 sealed interface MonitorInstruction: Instruction
 

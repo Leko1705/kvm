@@ -11,6 +11,7 @@ import com.leko.kvm.typing.DoubleType
 import com.leko.kvm.typing.FloatType
 import com.leko.kvm.typing.IntType
 import com.leko.kvm.typing.LongType
+import com.leko.kvm.typing.ReferenceType
 import com.leko.kvm.typing.ShortType
 import com.leko.kvm.typing.Type
 import com.leko.kvm.typing.VoidType
@@ -258,9 +259,9 @@ fun Value.toChar(): Value = PrimitiveCast(this, CharType)
 
 fun Value.toShort(): Value = PrimitiveCast(this, ShortType)
 
-infix fun Value.into(to: ClassType): Value = Cast(this, to)
+infix fun Value.into(to: ReferenceType): Value = Cast(this, to)
 
-fun Value.isInstanceOf(type: ClassType): Value = InstanceOf(this, type)
+fun Value.isInstanceOf(type: ReferenceType): Value = InstanceOf(this, type)
 
 infix fun Value.eq(other: Value): Value = TODO() //Equals(other, this)
 

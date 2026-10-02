@@ -459,13 +459,13 @@ object ASM : BytecodeGenerator, BytecodeParser {
 
     /** CHECKCAST/INSTANCEOF operands must resolve to a ClassType; array-type operands aren't representable
      *  by CheckCastInstruction/InstanceOfInstruction as currently modeled (both are typed to ClassType only). */
-    private fun requireClassType(type: String): ClassType {
-        check(!type.startsWith("[")) {
+    private fun requireClassType(type: Type): ReferenceType {
+        check(type is ReferenceType) {
             "CHECKCAST/INSTANCEOF against array type '$type' isn't representable — " +
                     "CheckCastInstruction/InstanceOfInstruction are typed to ClassType only. " +
                     "Widen those instructions to accept Type if you need to support this."
         }
-        return ClassType(internalToDotted(type))
+        return type
     }
 
     /** Strips one leading '[' dimension marker layer per call; used for MULTIANEWARRAY base element type. */
@@ -754,8 +754,8 @@ object ASM : BytecodeGenerator, BytecodeParser {
             instructions += when (opcode) {
                 Opcodes.NEW -> NewInstruction(ClassType(internalToDotted(type)))
                 Opcodes.ANEWARRAY -> ANewArrayInstruction(anewarrayOperandToType(type), dimensions = 1)
-                Opcodes.CHECKCAST -> CheckCastInstruction(requireClassType(type))
-                Opcodes.INSTANCEOF -> InstanceOfInstruction(requireClassType(type))
+                Opcodes.CHECKCAST -> CheckCastInstruction(requireClassType(type.parseJvmName()))
+                Opcodes.INSTANCEOF -> InstanceOfInstruction(requireClassType(type.parseJvmName()))
                 else -> error("Unhandled type-operand opcode: $opcode")
             }
         }
