@@ -15,11 +15,12 @@ object JVMJarFileLoader : JarFileLoader {
             .filter { !it.isDirectory && it.name.endsWith(".class") }
             .toList()
 
-        return LazyJarFile(jdkJarFile, classEntries)
+        return LazyJarFile(path, jdkJarFile, classEntries)
     }
 }
 
 private class LazyJarFile(
+    private val path: String,
     private val jdkJarFile: JdkJarFile,
     zipEntries: List<ZipEntry>,
 ) : JarFile, Closeable {
@@ -29,6 +30,8 @@ private class LazyJarFile(
     }
 
     override fun close() = jdkJarFile.close()
+
+    override fun toString(): String = path
 }
 
 private class LazyClassFile(
