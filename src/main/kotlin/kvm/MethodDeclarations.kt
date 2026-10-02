@@ -64,6 +64,7 @@ class ConcreteMethod(
 
     override fun equals(other: Any?): Boolean =
         other is ConcreteMethod
+                && this.owner == other.owner
                 && signature == other.signature
                 && this.accessFlags == other.accessFlags
                 && this.annotations == other.annotations

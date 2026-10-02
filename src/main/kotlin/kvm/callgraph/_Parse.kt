@@ -7,6 +7,7 @@ import com.leko.kvm.ConcreteMethod
 import com.leko.kvm.JarFile
 import com.leko.kvm.MethodDeclaration
 import com.leko.kvm.MethodSignature
+import com.leko.kvm.PresentMethodDeclaration
 import com.leko.kvm.typing.ClassHierarchy
 import com.leko.kvm.bytecode.*
 import com.leko.kvm.typing.ArrayType
@@ -17,13 +18,10 @@ import com.leko.kvm.classFiles
 import com.leko.kvm.parameterTypes
 import com.leko.kvm.returnType
 
-private fun buildCha(classFiles: List<ClassDeclaration>, entryPoints: Set<MethodSignature>): CallGraph {
+private fun buildCha(classFiles: List<ClassDeclaration>, entryPoints: Set<MethodDeclaration>): CallGraph {
     val hierarchy = ClassHierarchy(classFiles)
-    val bySignature = classFiles
-        .flatMap { (it as? ConcreteClass)?.methods.orEmpty().asSequence() }
-        .associateBy { it.signature }
 
-    val entryDecls = entryPoints.mapNotNull { bySignature[it] }.toSet()
+    val entryDecls = entryPoints.filterIsInstance<PresentMethodDeclaration>().toSet()
     val visited = mutableSetOf<MethodDeclaration>()
     val edges = mutableListOf<CallEdge>()
     val worklist = ArrayDeque<MethodDeclaration>().apply { addAll(entryDecls) }
@@ -45,13 +43,10 @@ private fun buildCha(classFiles: List<ClassDeclaration>, entryPoints: Set<Method
     return CallGraphImpl(entryDecls, edges)
 }
 
-private fun buildRta(classFiles: List<ClassDeclaration>, entryPoints: Set<MethodSignature>): CallGraph {
+private fun buildRta(classFiles: List<ClassDeclaration>, entryPoints: Set<MethodDeclaration>): CallGraph {
     val hierarchy = ClassHierarchy(classFiles)
-    val bySignature = classFiles
-        .flatMap { (it as? ConcreteClass)?.methods.orEmpty().asSequence() }
-        .associateBy { it.signature }
 
-    val entryDecls = entryPoints.mapNotNull { bySignature[it] }.toSet()
+    val entryDecls = entryPoints.filterIsInstance<PresentMethodDeclaration>().toSet()
     var reachable: Set<MethodDeclaration> = entryDecls
     var instantiated: Set<ClassType> = emptySet()
 
@@ -105,22 +100,20 @@ private fun resolveTargets(
     is InvokeDynamicInstruction -> emptyList() // see note below
 }
 
-fun List<ClassDeclaration>.mainMethods(): Set<MethodSignature> =
+fun List<ClassDeclaration>.mainMethods(): Set<MethodDeclaration> =
     this
         .flatMap { (it as? ConcreteClass)?.methods.orEmpty().asSequence() }
-        .map { it.signature }
         .filter {
-            it.name == "main"
-                    && it.returnType == VoidType
-                    && it.parameterTypes == listOf(ArrayType(ClassType("java/lang/String")))
+            it.signature.name == "main"
+                    && it.signature.returnType == VoidType
+                    && it.signature.parameterTypes == listOf(ArrayType(ClassType("java.lang.String")))
         }
         .toSet()
 
-fun List<ClassDeclaration>.publicApiMethods(): Set<MethodSignature> =
+fun List<ClassDeclaration>.publicApiMethods(): Set<MethodDeclaration> =
     this
         .flatMap { (it as? ConcreteClass)?.methods.orEmpty().asSequence() }
         .filter { it.accessFlags.isPublic } // + probably: owning class is also public
-        .map { it.signature }
         .toSet()
 
 
