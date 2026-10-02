@@ -22,7 +22,11 @@ class JarBuilder internal constructor() {
         val builder = ClassBuilderImpl(ClassType(name))
         val scope = ClassBuilderScope(builder)
         scope.apply(block)
-        classes.add(GeneratedClassFile(builder.build()))
+        addClass(builder.build())
+    }
+
+    fun addClass(clazz: ConcreteClass) {
+        classes.add(GeneratedClassFile(clazz))
     }
 
     internal fun build(): JarFile = GeneratedJarFile(classes)
