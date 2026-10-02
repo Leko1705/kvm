@@ -160,7 +160,7 @@ class ClassBuilderImpl internal constructor(private val thisType: ClassType): Co
     }
 
     override fun method(name: String, returnType: Type): CompletableMethodBuilder {
-        val mb = MethodBuilderImpl(name, thisType, returnType, superClass, flags.isAbstract)
+        val mb = MethodBuilderImpl(name, thisType, returnType, superClass)
         todos.add {
             val method = mb.build()
             methods.add(method)
@@ -224,7 +224,6 @@ class MethodBuilderImpl internal constructor(
     private val thisType: ClassType,
     var returnType: Type,
     var superClass: ClassType,
-    private val isAbstract: Boolean,
 ): CompletableMethodBuilder {
 
     private val parameters = mutableMapOf<String, LocalPtr>()
@@ -265,7 +264,7 @@ class MethodBuilderImpl internal constructor(
             ConcreteMethod(thisType, signature, flags, annotations, body.toMethodBody())
         }
         else {
-            if (!isAbstract && !flags.isNative)
+            if (!flags.isAbstract && !flags.isNative)
                 throw IllegalStateException("Missing method body for $name")
             AbstractMethod(thisType, signature, flags, annotations)
         }
