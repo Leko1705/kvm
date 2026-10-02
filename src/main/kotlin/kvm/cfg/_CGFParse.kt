@@ -4,6 +4,30 @@ import com.leko.kvm.bytecode.*
 import com.leko.kvm.ConcreteMethod
 import com.leko.kvm.MethodBody
 
+/**
+ * Builds a [ControlFlowGraph] from a linear list of bytecode instructions.
+ *
+ * Construction has two phases:
+ *
+ * 1. **Leader identification.** An instruction starts a new basic block if it is
+ *    the first instruction, a [LabelInstruction], or the instruction after a
+ *    jump, switch, return or throw. Jump and switch targets are leaders as well.
+ * 2. **Block construction and edge wiring.** The instructions are split at the
+ *    leaders. Each slice becomes a [Block] whose type is determined by its last
+ *    instruction. Successors are wired in a second pass, after every block
+ *    exists, so loops and back-edges resolve correctly.
+ *
+ * Only normal control flow is modeled. Exception handlers are not considered,
+ * so no edges lead into handler code (see [MethodBody.handlers]).
+ *
+ * @receiver The instructions of a single method body, in bytecode order.
+ * @return The control flow graph, whose [entry][ControlFlowGraph.entry] is the
+ * block containing the first instruction.
+ * @throws IllegalArgumentException if the instruction list is empty.
+ * @throws IllegalStateException if a jump or switch targets a label with no
+ * matching [LabelInstruction], or if execution can fall off the end of the
+ * list without a return or throw.
+ */
 fun List<Instruction>.cfg(): ControlFlowGraph {
     val instrs = this
     require(instrs.isNotEmpty()) { "Cannot build a CFG from an empty instruction list" }
@@ -108,9 +132,21 @@ fun List<Instruction>.cfg(): ControlFlowGraph {
     val all = blockByStart.values.toList()
     val exits = all.filterIsInstance<TerminationBlock>()
 
-    return CFGImpl(entry = entry, exists = exits, all = all)
+    return CFGImpl(entry = entry, exits = exits, all = all)
 }
 
+/**
+ * Builds a [ControlFlowGraph] from this body's [instructions][MethodBody.instructions].
+ *
+ * @see List.cfg
+ */
 fun MethodBody.cfg(): ControlFlowGraph = instructions.cfg()
 
+/**
+ * Builds a [ControlFlowGraph] from this method's [body][ConcreteMethod.body].
+ *
+ * Accessing this forces the lazy body to be computed.
+ *
+ * @see List.cfg
+ */
 fun ConcreteMethod.cfg(): ControlFlowGraph = body.cfg()

@@ -2,7 +2,12 @@ package com.leko.kvm.bytecode
 
 import com.leko.kvm.readableJvm
 
-
+/**
+ * Returns the JVM bytecode opcode represented by this instruction.
+ *
+ * Instructions that do not have a direct JVM opcode, such as pseudo-instructions
+ * used during bytecode generation, return `null`.
+ */
 val Instruction.opcode: Byte?
     get() = when (this) {
         NopInstruction -> 0
@@ -187,6 +192,12 @@ val Instruction.opcode: Byte?
         is LineNumberInstruction -> null
     }
 
+/**
+ * Returns the JVM method-handle reference kind associated with this handle kind.
+ *
+ * The returned value corresponds to the reference kind constants defined by the
+ * JVM class-file format.
+ */
 val HandleKind.opcode: Byte
     get() = when (this) {
         HandleKind.GET_FIELD -> 1
@@ -200,6 +211,13 @@ val HandleKind.opcode: Byte
         HandleKind.INVOKE_INTERFACE -> 9
     }
 
+/**
+ * Produces a human-readable representation of this instruction.
+ *
+ * The returned string is intended for debugging, logging, bytecode inspection,
+ * and other diagnostic output. It represents the instruction and its operands
+ * without necessarily matching the textual syntax of a particular assembler.
+ */
 fun Instruction.readable(): String = when (this) {
     NopInstruction -> "nop"
 

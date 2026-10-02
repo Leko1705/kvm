@@ -18,10 +18,25 @@ import com.leko.kvm.typing.VoidType
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+/**
+ * Uniquely identifies a bytecode location within a method body.
+ *
+ * Labels are used by branch instructions, exception handlers, and code placement
+ * operations to reference target positions in the instruction stream.
+ */
 data class Label @OptIn(ExperimentalUuidApi::class) constructor(val name: String = Uuid.random().toString())
 
+/**
+ * A single JVM instruction emitted into a method body.
+ *
+ * Instruction objects model the bytecode-level operations of the KVM DSL without
+ * depending on ASM-specific types.
+ */
 sealed interface Instruction
 
+/**
+ * Instruction that can be used as a constant-loading or immediate-value opcode.
+ */
 sealed interface ConstantInstruction : Instruction
 
 data object NopInstruction : Instruction
@@ -103,8 +118,17 @@ data class Ldc2wInstruction(val value: Number) : ConstantInstruction {
 
 // ── loads and stores ─────────────────────────────────────────────────────────
 
+/**
+ * Loads a local variable from the given JVM register.
+ *
+ * Subclasses represent the concrete bytecode opcodes used for primitive and
+ * reference locals.
+ */
 sealed class VarLoadInstruction(val register: Int) : Instruction
 
+/**
+ * Loads a value from an array slot.
+ */
 sealed interface ArrayLoadInstruction : Instruction
 
 class ILoadInstruction(register: Int): VarLoadInstruction(register)
@@ -117,6 +141,13 @@ class DLoadInstruction(register: Int): VarLoadInstruction(register)
 
 class ALoadInstruction(register: Int): VarLoadInstruction(register)
 
+/**
+ * Resolves the JVM local-load opcode for the supplied type.
+ *
+ * @param type type of the local variable.
+ * @param register local variable slot index.
+ * @return corresponding load instruction for the JVM operand stack.
+ */
 fun VarLoadInstruction(type: Type, register: Int): VarLoadInstruction = when(type) {
     BooleanType -> ILoadInstruction(register)
     ByteType -> ILoadInstruction(register)
@@ -146,6 +177,9 @@ data object CALoadInstruction: ArrayLoadInstruction
 
 data object SALoadInstruction: ArrayLoadInstruction
 
+/**
+ * Resolves the JVM array-load opcode for the supplied element type.
+ */
 fun ArrayLoadInstruction(type: Type): ArrayLoadInstruction = when(type) {
     BooleanType -> IALoadInstruction
     ByteType -> BALoadInstruction
@@ -159,8 +193,14 @@ fun ArrayLoadInstruction(type: Type): ArrayLoadInstruction = when(type) {
     is ReferenceType -> AALoadInstruction
 }
 
+/**
+ * Stores a value into a local variable slot.
+ */
 sealed class VarStoreInstruction(val register: Int) : Instruction
 
+/**
+ * Stores a value into an array element.
+ */
 sealed interface ArrayStoreInstruction : Instruction
 
 class IStoreInstruction(register: Int): VarStoreInstruction(register)
@@ -173,6 +213,9 @@ class DStoreInstruction(register: Int): VarStoreInstruction(register)
 
 class AStoreInstruction(register: Int): VarStoreInstruction(register)
 
+/**
+ * Resolves the JVM local-store opcode for the supplied type.
+ */
 fun VarStoreInstruction(type: Type, register: Int): VarStoreInstruction = when(type) {
     BooleanType -> IStoreInstruction(register)
     ByteType -> IStoreInstruction(register)
@@ -202,6 +245,9 @@ data object CAStoreInstruction: ArrayStoreInstruction
 
 data object SAStoreInstruction: ArrayStoreInstruction
 
+/**
+ * Resolves the JVM array-store opcode for the supplied element type.
+ */
 fun ArrayStoreInstruction(type: Type): ArrayStoreInstruction = when(type) {
     BooleanType -> IAStoreInstruction
     ByteType -> BAStoreInstruction
@@ -217,6 +263,9 @@ fun ArrayStoreInstruction(type: Type): ArrayStoreInstruction = when(type) {
 
 // ── fields ───────────────────────────────────────────────────────────────────
 
+/**
+ * Operations that manipulate or duplicate values on the JVM operand stack.
+ */
 sealed interface StackOperationInstruction : Instruction
 
 data object PopInstruction: StackOperationInstruction
@@ -242,6 +291,9 @@ data object SwapInstruction: StackOperationInstruction
 // ── arithmetic and stack ──────────────────────────────────────────────────────
 
 
+/**
+ * JVM arithmetic, conversion, or comparison instruction.
+ */
 sealed interface ArithmeticInstruction: Instruction
 
 data object IAddInstruction: ArithmeticInstruction
@@ -360,12 +412,20 @@ data object DcmplInstruction: ArithmeticInstruction
 
 data object DcmpgInstruction: ArithmeticInstruction
 
+/**
+ * Unconditional jump to another label.
+ *
+ * @property target destination instruction label.
+ */
 data class GotoInstruction(val target: Label) : Instruction
 
 data object JsrInstruction: Instruction
 
 data object RetInstruction: Instruction
 
+/**
+ * Bytecode switch dispatch based on an integer key.
+ */
 sealed interface SwitchInstruction: Instruction {
     val default: Label
     val cases: Map<Int, Label>
@@ -375,6 +435,9 @@ data class TableSwitchInstruction(override val default: Label, override val case
 
 data class LookupSwitchInstruction(override val default: Label, override val cases: Map<Int, Label>) : SwitchInstruction
 
+/**
+ * Creates the appropriate switch instruction variant for the supplied case map.
+ */
 fun SwitchInstruction(default: Label, cases: Map<Int, Label>): SwitchInstruction {
     val keys = cases.keys
     if (keys.isEmpty()) {
@@ -401,6 +464,9 @@ fun SwitchInstruction(default: Label, cases: Map<Int, Label>): SwitchInstruction
     }
 }
 
+/**
+ * Instruction that returns a value from the current method.
+ */
 sealed interface ReturnInstruction : Instruction
 
 data object IReturnInstruction: ReturnInstruction
@@ -415,6 +481,9 @@ data object AReturnInstruction: ReturnInstruction
 
 data object VReturnInstruction: ReturnInstruction
 
+/**
+ * Resolves the JVM return opcode for the given method return type.
+ */
 fun ReturnInstruction(type: Type) : ReturnInstruction = when (type) {
     VoidType -> VReturnInstruction
     IntType, BooleanType, ByteType, CharType, ShortType -> IReturnInstruction

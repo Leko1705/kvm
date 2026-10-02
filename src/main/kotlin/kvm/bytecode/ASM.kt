@@ -8,6 +8,14 @@ import org.objectweb.asm.Label as AsmLabel
 import org.objectweb.asm.Type as AsmType
 
 
+/**
+ * Default bytecode generator and parser for the in-memory representation used by
+ * this package.
+ *
+ * The implementation translates [ConcreteClass] instances into JVM bytecode via
+ * ASM and can also read selected bytecode structures back into the intermediate
+ * representation.
+ */
 object ASM : BytecodeGenerator, BytecodeParser {
 
     override fun generate(clazz: ConcreteClass): ByteArray {

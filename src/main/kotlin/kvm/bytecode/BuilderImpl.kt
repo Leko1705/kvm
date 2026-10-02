@@ -19,6 +19,12 @@ import com.leko.kvm.typing.VoidType
 import kotlin.collections.set
 
 
+/**
+ * Default implementation of [AnnotationBuilder] used by bytecode builders.
+ *
+ * The builder stores the annotation values in a mutable map until [build] is
+ * called, at which point it freezes the values into a [KvmAnnotation].
+ */
 class AnnotationBuilderImpl(name: String): CompletableAnnotationBuilder {
     
     private val fields = mutableMapOf<String, Any>()
@@ -135,6 +141,11 @@ class AnnotationBuilderImpl(name: String): CompletableAnnotationBuilder {
 
 }
 
+/**
+ * Builds a class declaration and accumulates its members until [build] is called.
+ *
+ * @param thisType type of the class being assembled.
+ */
 class ClassBuilderImpl internal constructor(private val thisType: ClassType): CompletableClassBuilder {
 
     private val fields = mutableListOf<ConcreteField>()
@@ -223,6 +234,15 @@ class ClassBuilderImpl internal constructor(private val thisType: ClassType): Co
 }
 
 
+/**
+ * Builds a single method declaration, including its annotations, parameters and,
+ * when present, its method body.
+ *
+ * @param name method name.
+ * @param thisType owner class of the method.
+ * @param returnType declared return type.
+ * @param superClass superclass used by generated `super` calls.
+ */
 class MethodBuilderImpl internal constructor(
     private val name: String,
     private val thisType: ClassType,
@@ -276,6 +296,9 @@ class MethodBuilderImpl internal constructor(
 
 }
 
+/**
+ * Mutable parameter list used during method construction.
+ */
 class ParametersBuilderImpl internal constructor(
     private val parameters: MutableMap<String, LocalPtr>
 ): ParametersBuilder {
@@ -291,6 +314,10 @@ class ParametersBuilderImpl internal constructor(
 }
 
 
+/**
+ * Concrete method body builder that records bytecode statements and produces a
+ * [MethodBody] at the end of construction.
+ */
 class MethodBodyBuilderImpl internal constructor(
     private val methodName: String,
     internal val parameters: MutableMap<String, LocalPtr>,

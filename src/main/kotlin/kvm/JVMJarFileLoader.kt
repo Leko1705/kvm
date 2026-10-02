@@ -6,8 +6,24 @@ import java.io.File
 import java.util.zip.ZipEntry
 import java.util.jar.JarFile as JdkJarFile
 
+/**
+ * A [JarFileLoader] that reads jars from the local file system using the
+ * JDK's jar support.
+ *
+ * The jar is opened and its entry table is read eagerly, but class contents
+ * are not parsed here. The returned [LazyJarFile] holds on to the opened
+ * archive and the list of `.class` entries so that classes can be read
+ * on demand.
+ */
 object JVMJarFileLoader : JarFileLoader {
 
+    /**
+     * Opens the jar at [path] and indexes its class entries.
+     *
+     * @param path File system path of the jar to open.
+     * @return A [LazyJarFile] backed by the opened archive. The underlying
+     * archive stays open for the lifetime of the returned object.
+     */
     override fun load(path: String): JarFile {
         val jdkJarFile = JdkJarFile(File(path))
 

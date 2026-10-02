@@ -18,22 +18,87 @@ import com.leko.kvm.typing.ShortType
 import com.leko.kvm.typing.Type
 import com.leko.kvm.typing.VoidType
 
+/**
+ * Receives generated JVM bytecode instructions and associated structural
+ * information.
+ *
+ * Implementations can use the emitted instructions to construct a class-file,
+ * an intermediate representation, or another bytecode representation.
+ */
 interface InstructionGenerator {
+
+    /**
+     * Emits an instruction.
+     *
+     * @param instruction instruction to emit.
+     */
     fun emit(instruction: Instruction)
+
+    /**
+     * Places a label at the current position in the generated instruction stream.
+     *
+     * @param label label identifying the current bytecode position.
+     */
     fun placeLabel(label: Label)
+
+    /**
+     * Registers an exception handler for a bytecode range.
+     *
+     * @param start first label of the protected region.
+     * @param end label marking the end of the protected region.
+     * @param handler label at which the handler begins.
+     * @param type exception type handled by the handler, or `null` for a
+     * catch-all handler.
+     */
     fun registerExceptionHandler(start: Label, end: Label, handler: Label, type: ClassType?)
 }
 
+
+/**
+ * A node that can generate JVM bytecode through an [InstructionGenerator].
+ *
+ * Implementations describe either a value or a statement in the bytecode
+ * generation tree.
+ */
 interface JBCTree {
+
+    /**
+     * Generates bytecode for this tree.
+     *
+     * @param generator target receiving generated instructions and labels.
+     */
     fun generate(generator: InstructionGenerator)
 }
 
-interface Value: JBCTree {
+/**
+ * A bytecode-generation tree that produces a value.
+ *
+ * Values expose their JVM-level type and can be used as operands of expressions,
+ * method calls, field accesses, control-flow conditions, and other operations.
+ */
+interface Value : JBCTree {
+
+    /**
+     * Type of the value produced by this tree.
+     */
     val type: Type
 }
 
-sealed interface Ptr: Value
+/**
+ * A value that identifies a storage location rather than directly producing
+ * its stored value.
+ *
+ * Pointers can be used as targets of [Store] operations and may represent
+ * locals, fields, or array elements.
+ */
+sealed interface Ptr : Value
 
+/**
+ * A pointer to a local variable slot.
+ *
+ * @property address local-variable slot used by the JVM bytecode.
+ * @property type type of the local variable.
+ */
 data class LocalPtr(
     val address: Int,
     override val type: Type,
@@ -43,6 +108,13 @@ data class LocalPtr(
     }
 }
 
+/**
+ * A pointer to an instance field.
+ *
+ * @property owner class declaring the field.
+ * @property name field name.
+ * @property type field type.
+ */
 data class FieldPtr(
     val owner: ClassType,
     val name: String,
@@ -53,6 +125,13 @@ data class FieldPtr(
     }
 }
 
+/**
+ * A pointer to a static field.
+ *
+ * @property clazz class declaring the field.
+ * @property name field name.
+ * @property type field type.
+ */
 data class StaticPtr(
     val clazz: ClassType,
     val name: String,
@@ -63,6 +142,14 @@ data class StaticPtr(
     }
 }
 
+/**
+ * A pointer to an element of an array.
+ *
+ * The type of this pointer is the component type of [array].
+ *
+ * @property array array containing the element.
+ * @property index index of the element.
+ */
 data class ArrayPtr(val array: Value, val index: Value) : Ptr {
     override val type = (array.type as ArrayType).generic
     override fun generate(generator: InstructionGenerator) {
@@ -82,6 +169,12 @@ data class ArrayPtr(val array: Value, val index: Value) : Ptr {
     }
 }
 
+/**
+ * Allocates a new array.
+ *
+ * @property elementType type of each array element.
+ * @property size number of elements to allocate.
+ */
 data class NewArray(val elementType: Type, val size: Value) : Value {
     override val type = ArrayType(elementType)
     override fun generate(generator: InstructionGenerator) {
@@ -90,6 +183,13 @@ data class NewArray(val elementType: Type, val size: Value) : Value {
     }
 }
 
+/**
+ * Reads the length of an array.
+ *
+ * The resulting value has type [IntType].
+ *
+ * @property array array whose length is read.
+ */
 data class ArrayLength(val array: Value) : Value {
     override val type = IntType
     override fun generate(generator: InstructionGenerator) {
@@ -98,6 +198,12 @@ data class ArrayLength(val array: Value) : Value {
     }
 }
 
+/**
+ * Performs a JVM reference cast using `CHECKCAST`.
+ *
+ * @property value reference to cast.
+ * @property type target reference type.
+ */
 data class Cast(val value: Value, override val type: ReferenceType) : Value {
     override fun generate(generator: InstructionGenerator) {
         value.generate(generator)
@@ -105,6 +211,15 @@ data class Cast(val value: Value, override val type: ReferenceType) : Value {
     }
 }
 
+/**
+ * Performs a primitive numeric conversion.
+ *
+ * The supported conversions correspond to JVM primitive conversion
+ * instructions such as `I2L`, `L2I`, `F2D`, and `D2F`.
+ *
+ * @property value value to convert.
+ * @property type target primitive type.
+ */
 data class PrimitiveCast(val value: Value, override val type: Type) : Value {
     override fun generate(generator: InstructionGenerator) {
         value.generate(generator)
@@ -153,6 +268,9 @@ data class PrimitiveCast(val value: Value, override val type: Type) : Value {
     }
 }
 
+/**
+ * Represents the JVM `null` reference.
+ */
 data object NullValue : Value {
     override val type: Type = NullType
     override fun generate(generator: InstructionGenerator) {
@@ -160,41 +278,72 @@ data object NullValue : Value {
     }
 }
 
+
+/**
+ * A constant byte value.
+ *
+ * @property value byte value represented by this node.
+ */
 data class ByteValue(val value: Byte) : Value {
     override val type: Type = ByteType
     override fun generate(generator: InstructionGenerator) = generator.emit(IntConstant(value.toInt()))
 }
 
+/**
+ * A constant character value.
+ *
+ * @property value character represented by this node.
+ */
 data class CharValue(val value: Char) : Value {
     override val type: Type = CharType
     override fun generate(generator: InstructionGenerator) = generator.emit(IntConstant(value.code))
 }
 
+/**
+ * A constant short value.
+ *
+ * @property value short value represented by this node.
+ */
 data class ShortValue(val value: Short) : Value {
     override val type: Type = ShortType
     override fun generate(generator: InstructionGenerator) = generator.emit(IntConstant(value.toInt()))
 }
 
+/**
+ * Constant integer value.
+ */
 data class IntValue(val value: Int) : Value {
     override val type: Type = IntType
     override fun generate(generator: InstructionGenerator) = generator.emit(IntConstant(value))
 }
 
+/**
+ * Constant long value.
+ */
 data class LongValue(val value: Long) : Value {
     override val type: Type = LongType
     override fun generate(generator: InstructionGenerator) = generator.emit(LongConstant(value))
 }
 
+/**
+ * Constant floating-point value.
+ */
 data class FloatValue(val value: Float) : Value {
     override val type: Type = FloatType
     override fun generate(generator: InstructionGenerator) = generator.emit(FloatConstant(value))
 }
 
+/**
+ * Constant double value.
+ */
 data class DoubleValue(val value: Double) : Value {
     override val type: Type = DoubleType
     override fun generate(generator: InstructionGenerator) = generator.emit(DoubleConstant(value))
 }
 
+/**
+ * Constant boolean value.
+ */
 data class BooleanValue(val value: Boolean) : Value {
     override val type: Type = BooleanType
     override fun generate(generator: InstructionGenerator) {
@@ -202,11 +351,17 @@ data class BooleanValue(val value: Boolean) : Value {
     }
 }
 
+/**
+ * Constant string value.
+ */
 data class StringValue(val value: String) : Value {
     override val type: Type get() = ClassType("java.lang.String")
     override fun generate(generator: InstructionGenerator) = generator.emit(LdcInstruction(value))
 }
 
+/**
+ * Tests whether the supplied value is an instance of the requested reference type.
+ */
 data class InstanceOf(
     val value: Value,
     val checkedType: ReferenceType
@@ -219,6 +374,9 @@ data class InstanceOf(
     }
 }
 
+/**
+ * Binary arithmetic or comparison operation over two values.
+ */
 data class Operation(
     val lhs: Value,
     val rhs: Value,
@@ -232,6 +390,9 @@ data class Operation(
     }
 }
 
+/**
+ * Unary arithmetic or comparison operation over a single value.
+ */
 data class UnaryOperation(
     val operand: Value,
     val op: ArithmeticInstruction,
@@ -243,6 +404,9 @@ data class UnaryOperation(
     }
 }
 
+/**
+ * Virtual method invocation on an instance receiver.
+ */
 data class CallVirtual(
     val receiver: Value?,
     val owner: ClassType,
@@ -259,6 +423,9 @@ data class CallVirtual(
     }
 }
 
+/**
+ * Invokes a special method, such as a constructor or private method call.
+ */
 data class CallSpecial(
     val receiver: Value?,
     val owner: ClassType,
@@ -275,6 +442,9 @@ data class CallSpecial(
     }
 }
 
+/**
+ * Static method invocation on a class.
+ */
 data class StaticCall(
     val owner: ClassType,
     val name: String,
@@ -289,6 +459,9 @@ data class StaticCall(
     }
 }
 
+/**
+ * Allocates a new object instance and invokes the matching constructor.
+ */
 data class New(
     override val type: ClassType,
     val args: List<Value>,
@@ -303,18 +476,33 @@ data class New(
     }
 }
 
+/**
+ * A statement in the bytecode-generation tree.
+ *
+ * Statements are side-effectful operations such as evaluations, stores,
+ * branches, or exception handler registrations.
+ */
 interface Statement: JBCTree
 
+/**
+ * Wraps a raw bytecode instruction as a statement.
+ */
 data class Inst(val instruction: Instruction): Statement {
     override fun generate(generator: InstructionGenerator) {
         generator.emit(instruction)
     }
 }
 
+/**
+ * Emits a source line-number mapping for debugging and stack traces.
+ */
 data class LineNumber(val line: Int) : Statement {
     override fun generate(generator: InstructionGenerator) = generator.emit(LineNumberInstruction(line))
 }
 
+/**
+ * Evaluates a value and discards it from the stack.
+ */
 data class Pop(val value: Value) : Statement {
     override fun generate(generator: InstructionGenerator) {
         value.generate(generator)
@@ -322,18 +510,30 @@ data class Pop(val value: Value) : Statement {
     }
 }
 
+/**
+ * Evaluates a value without consuming it from the stack.
+ */
 data class Eval(val value: Value) : Statement {
     override fun generate(generator: InstructionGenerator) = value.generate(generator)
 }
 
+/**
+ * Places a label at the current instruction position.
+ */
 data class LabelInst(val label: Label): Statement {
     override fun generate(generator: InstructionGenerator) = generator.placeLabel(label)
 }
 
+/**
+ * Unconditionally jumps to the specified label.
+ */
 data class Goto(val label: Label): Statement {
     override fun generate(generator: InstructionGenerator) = generator.emit(GotoInstruction(label))
 }
 
+/**
+ * Emits a branch instruction whose behavior depends on a runtime condition.
+ */
 data class Branch(val condition: Value, val instruction: () -> JumpInstruction) : Statement {
     override fun generate(generator: InstructionGenerator) {
         condition.generate(generator)
@@ -341,6 +541,9 @@ data class Branch(val condition: Value, val instruction: () -> JumpInstruction) 
     }
 }
 
+/**
+ * Returns a value or `void` from the current method.
+ */
 data class Return(val value: Value?) : Statement {
     override fun generate(generator: InstructionGenerator) {
         value?.generate(generator)
@@ -348,6 +551,9 @@ data class Return(val value: Value?) : Statement {
     }
 }
 
+/**
+ * Emits an integer-based switch dispatch.
+ */
 data class SwitchDispatch(
     val value: Value,
     val cases: Map<Int, Label>,
@@ -359,6 +565,9 @@ data class SwitchDispatch(
     }
 }
 
+/**
+ * Sequencing node that emits several statements in order.
+ */
 data class Sequence(val statements: List<Statement>) : Statement {
     override fun generate(generator: InstructionGenerator) {
         for (statement in statements) {
@@ -367,6 +576,9 @@ data class Sequence(val statements: List<Statement>) : Statement {
     }
 }
 
+/**
+ * Stores a value into a local, static field, instance field, or array slot.
+ */
 data class Store(val ptr: Ptr, val value: Value) : Statement {
     override fun generate(generator: InstructionGenerator) {
         when (ptr) {
@@ -395,6 +607,9 @@ data class Store(val ptr: Ptr, val value: Value) : Statement {
     }
 }
 
+/**
+ * Registers an exception-handler range for a method body.
+ */
 data class ExceptionHandlerEntry(
     val start: Label,
     val end: Label,
@@ -406,6 +621,9 @@ data class ExceptionHandlerEntry(
     }
 }
 
+/**
+ * Throws a throwable value from the current execution point.
+ */
 data class Throw(val throwable: Value): Statement {
     override fun generate(generator: InstructionGenerator) {
         throwable.generate(generator)

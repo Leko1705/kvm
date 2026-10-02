@@ -14,6 +14,13 @@ import com.leko.kvm.typing.VoidType
 import kotlin.reflect.KProperty
 
 
+/**
+ * Builds a concrete JVM class using the bytecode-generation DSL.
+ *
+ * @param name fully qualified class name.
+ * @param block class declaration DSL.
+ * @return generated class declaration.
+ */
 fun buildClass(
     name: String,
     block: ClassBuilderScope.() -> Unit
@@ -24,25 +31,48 @@ fun buildClass(
     return builder.build()
 }
 
-
+/**
+ * Configures this class builder using the bytecode-generation DSL.
+ *
+ * @param block class configuration block.
+ * @return this builder.
+ */
 fun ClassBuilder.dsl(block: ClassBuilderScope.() -> Unit): ClassBuilder {
     val builder = ClassBuilderScope(this)
     builder.block()
     return this
 }
 
+/**
+ * Configures this method builder using the bytecode-generation DSL.
+ *
+ * @param block method configuration block.
+ * @return this builder.
+ */
 fun MethodBuilder.dsl(block: MethodBuilderScope.() -> Unit): MethodBuilder {
     val builder = MethodBuilderScope(this)
     builder.block()
     return this
 }
 
+/**
+ * Configures method parameters using the bytecode-generation DSL.
+ *
+ * @param block parameter configuration block.
+ * @return this builder.
+ */
 fun ParametersBuilder.dsl(block: ParametersBuilderScope.() -> Unit): ParametersBuilder {
     val builder = ParametersBuilderScope(this)
     builder.block()
     return this
 }
 
+/**
+ * Configures a method body using the bytecode-generation DSL.
+ *
+ * @param block method-body configuration block.
+ * @return the original control-flow and value builders.
+ */
 fun Pair<ControlFlowBuilder, ValueBuilder>.dsl(
     block: MethodBodyBuilderScope.() -> Unit
 ): Pair<ControlFlowBuilder, ValueBuilder> {
@@ -56,6 +86,31 @@ fun Pair<ControlFlowBuilder, ValueBuilder>.dsl(
 @DslMarker
 annotation class BytecodeGen
 
+/**
+ * DSL scope for declaring a class field, method, or constructor.
+ *
+ * Access and JVM method/field modifiers can be configured through properties.
+ * The desired member type is supplied using the `get` operator:
+ *
+ * ```
+ * public[Int].field("value")
+ * public[String].method("name")()
+ * ```
+ *
+ * Modifier validation is performed when the member is created.
+ *
+ * @property static adds the JVM `static` modifier.
+ * @property final adds the JVM `final` modifier.
+ * @property synchronized adds the JVM `synchronized` modifier to methods.
+ * @property bridge adds the JVM `bridge` modifier.
+ * @property varargs adds the JVM `varargs` modifier.
+ * @property native adds the JVM `native` modifier.
+ * @property abstract adds the JVM `abstract` modifier.
+ * @property synthetic adds the JVM `synthetic` modifier.
+ * @property volatile adds the JVM `volatile` modifier to fields.
+ * @property transient adds the JVM `transient` modifier to fields.
+ * @property enum adds the JVM `enum` field modifier.
+ */
 @BytecodeGen
 class ClassMemberGeneratorScope internal constructor(
     private val builder: ClassBuilder,
@@ -124,11 +179,26 @@ class ClassMemberGeneratorScope internal constructor(
         return this
     }
 
+    /**
+     * Sets the type of the member being declared.
+     *
+     * @param type type of the field or method return type.
+     * @return this scope.
+     */
     operator fun get(type: Type): ClassMemberGeneratorScope {
         this.type = type
         return this
     }
 
+    /**
+     * Begins declaration of a method.
+     *
+     * @param name method name.
+     * @return a preparer used to supply parameters and an optional body.
+     *
+     * @throws IllegalStateException if field-only modifiers are present or the
+     * configured method modifiers are invalid.
+     */
     fun method(name: String): MethodBodyPreparer {
         if (fieldFlags hasAny (FieldFlags.FIELD_SPECIFIC + FieldFlags.ENUM)) {
             throw IllegalStateException("can not attach method flags to field")
@@ -142,6 +212,14 @@ class ClassMemberGeneratorScope internal constructor(
         return MethodBodyPreparer(name, annotationApplier)
     }
 
+    /**
+     * Declares a field using the configured type, modifiers, and annotations.
+     *
+     * @param name field name.
+     *
+     * @throws IllegalStateException if no field type has been configured or
+     * method-only modifiers are present.
+     */
     fun field(name: String) {
         if (methodFlags hasAny MethodFlags.METHOD_SPECIFIC) {
             throw IllegalStateException("can not attach method flags to field")
@@ -151,6 +229,15 @@ class ClassMemberGeneratorScope internal constructor(
         annotationApplier.forEach { it.apply(fb) }
     }
 
+    /**
+     * Begins declaration of a constructor.
+     *
+     * The constructor is represented as a method named `<init>` and always has
+     * return type [VoidType].
+     *
+     * @throws IllegalStateException if constructor-incompatible modifiers or a
+     * non-void return type have been configured.
+     */
     val constructor: MethodBodyPreparer get() {
         if (type == null) type = VoidType
         if (type != VoidType) throw IllegalStateException("Constructors return type must be void")
@@ -166,6 +253,14 @@ class ClassMemberGeneratorScope internal constructor(
         private val annotationApplier: List<ClassBuilderScope.MemberAnnotationPrepare.AnnotationApplier>
     ) {
 
+        /**
+         * Defines a method body and parameters for the prepared method.
+         *
+         * Invoking this object creates the method on the enclosing class builder.
+         *
+         * @param params method parameters as name/type pairs.
+         * @param block optional method body.
+         */
         operator fun invoke(vararg params: Pair<String, Type>, block: (MethodBodyBuilderScope.() -> Unit)? = null) {
             val mb = builder.method(name, type ?: VoidType)
             annotationApplier.forEach { it.apply(mb) }
@@ -185,39 +280,70 @@ class ClassMemberGeneratorScope internal constructor(
 
 }
 
+/**
+ * DSL scope for configuring a JVM class.
+ *
+ * The scope exposes class access flags, superclass and implemented interfaces,
+ * as well as convenient declarations for fields, methods, constructors,
+ * annotations, and the static initializer.
+ */
 @BytecodeGen
 class ClassBuilderScope internal constructor(private val builder: ClassBuilder) {
 
+    /** JVM `public` class flag. */
     val PUBLIC      = ClassFlags.PUBLIC
+
+    /** JVM `final` class flag. */
     val FINAL       = ClassFlags.FINAL
+
+    /** JVM `interface` class flag. */
     val INTERFACE   = ClassFlags.INTERFACE
+
+    /** JVM `abstract` class flag. */
     val ABSTRACT    = ClassFlags.ABSTRACT
+
+    /** JVM `synthetic` class flag. */
     val SYNTHETIC   = ClassFlags.SYNTHETIC
+
+    /** JVM `annotation` class flag. */
     val ANNOTATION  = ClassFlags.ANNOTATION
+
+    /** JVM `enum` class flag. */
     val ENUM        = ClassFlags.ENUM
 
+    /** Access and declaration flags of the generated class. */
     var flags: ClassFlags
         get() = builder.flags
         set(value) {
             builder.flags = value
         }
 
+    /** Superclass of the generated class. */
     var superClass: ClassType
         get() = builder.superClass
         set(value) {
             builder.superClass = value
         }
 
+    /** Interfaces directly implemented by the generated class. */
     var interfaces: List<ClassType>
         get() = builder.interfaces
         set(value) {
             builder.interfaces = value
         }
 
+    /**
+     * Declares annotations on the generated class.
+     *
+     * @param block annotation declaration block.
+     */
     fun annotations(block: AnnotationsBuilderScope.() -> Unit) {
         AnnotationsBuilderScope { builder.annotation(it) }.also(block)
     }
 
+    /**
+     * Provides a scope for declaring members with annotations and modifiers.
+     */
     inner class MemberAnnotationPrepare {
 
         inner class AnnotationApplier(private val name: String) {
@@ -243,12 +369,21 @@ class ClassBuilderScope internal constructor(private val builder: ClassBuilder) 
                 annotationPrepares.add(applier)
             }
 
+            /** Begins declaration of a public class member. */
             val public: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PUBLIC, annotationPrepares)
+
+            /** Begins declaration of a private class member. */
             val private: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PRIVATE, annotationPrepares)
+
+            /** Begins declaration of a protected class member. */
             val protected: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PROTECTED, annotationPrepares)
 
             val annotation: MemberAnnotationPrepare get() = this@MemberAnnotationPrepare
 
+            /**
+             * Adds parameters to the annotation, with the first Sting in each Pair being
+             * the parameters name and the second one its value.
+             */
             operator fun invoke(vararg args: Pair<String, Any?>): ConcreteMemberAnnotationPrepare {
                 applier.put { annoBuilder ->
                     for ((field, value) in args) {
@@ -288,14 +423,23 @@ class ClassBuilderScope internal constructor(private val builder: ClassBuilder) 
         }
     }
 
+    /** Begins registration of an annotation for a following class member. */
     val annotation: MemberAnnotationPrepare get() = MemberAnnotationPrepare()
 
+    /** Begins declaration of a public class member. */
     val public: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PUBLIC, emptyList())
 
+    /** Begins declaration of a private class member. */
     val private: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PRIVATE, emptyList())
 
+    /** Begins declaration of a protected class member. */
     val protected: ClassMemberGeneratorScope get() = ClassMemberGeneratorScope(builder, MethodFlags.PROTECTED, emptyList())
 
+    /**
+     * Defines the class static initializer (`<clinit>`).
+     *
+     * @param block static initializer body.
+     */
     fun static(block: MethodBodyBuilderScope.() -> Unit) {
         val (flow, values) = builder.static()
         val scope = MethodBodyBuilderScope(flow, values)
@@ -304,20 +448,45 @@ class ClassBuilderScope internal constructor(private val builder: ClassBuilder) 
 
 }
 
-
+/**
+ * DSL scope for configuring a method.
+ *
+ * Provides method access flags, annotations, parameters, and the method body.
+ */
 @BytecodeGen
 class MethodBuilderScope internal constructor(private val builder: MethodBuilder) {
 
+    /** JVM `public` method flag. */
     val PUBLIC       = MethodFlags.PUBLIC
+
+    /** JVM `private` method flag. */
     val PRIVATE      = MethodFlags.PRIVATE
+
+    /** JVM `protected` method flag. */
     val PROTECTED    = MethodFlags.PROTECTED
+
+    /** JVM `static` method flag. */
     val STATIC       = MethodFlags.STATIC
+
+    /** JVM `final` method flag. */
     val FINAL        = MethodFlags.FINAL
+
+    /** JVM `synchronized` method flag. */
     val SYNCHRONIZED = MethodFlags.SYNCHRONIZED
+
+    /** JVM `bridge` method flag. */
     val BRIDGE       = MethodFlags.BRIDGE
+
+    /** JVM `varargs` method flag. */
     val VARARGS      = MethodFlags.VARARGS
+
+    /** JVM `native` method flag. */
     val NATIVE       = MethodFlags.NATIVE
+
+    /** JVM `abstract` method flag. */
     val ABSTRACT     = MethodFlags.ABSTRACT
+
+    /** JVM `synthetic` method flag. */
     val SYNTHETIC    = MethodFlags.SYNTHETIC
 
     var flags: MethodFlags
@@ -326,14 +495,31 @@ class MethodBuilderScope internal constructor(private val builder: MethodBuilder
             builder.flags = value
         }
 
+    /**
+     * Declares annotations on the method.
+     *
+     * @param block annotation declaration block.
+     */
     fun annotations(block: AnnotationsBuilderScope.() -> Unit) {
         AnnotationsBuilderScope { builder.annotation(it) }.also(block)
     }
 
+    /**
+     * Declares parameters of the method.
+     *
+     * @param block parameter declaration block.
+     */
     fun parameters(block: ParametersBuilderScope.() -> Unit) {
         ParametersBuilderScope(builder.parameters()).also(block)
     }
 
+    /**
+     * Defines the method body.
+     *
+     * @param block method-body DSL block.
+     *
+     * @throws IllegalStateException when used for a method that cannot have a body.
+     */
     fun body(block: MethodBodyBuilderScope.() -> Unit) {
         val (flow, values) = builder.body()
         val scope = MethodBodyBuilderScope(flow, values)
@@ -341,8 +527,18 @@ class MethodBuilderScope internal constructor(private val builder: MethodBuilder
     }
 }
 
+/**
+ * DSL scope for declaring annotations.
+ */
 @BytecodeGen
 class AnnotationsBuilderScope internal constructor(private val builder: (String) -> AnnotationBuilder) {
+
+    /**
+     * Adds an annotation to the current declaration.
+     *
+     * @param name fully qualified annotation type name.
+     * @param block optional block used to configure annotation fields.
+     */
     fun annotation(name: String, block: (AnnotationBuilderScope.() -> Unit)? = null) {
         val builder = AnnotationBuilderScope(builder(name))
         if (block != null) {
@@ -351,6 +547,9 @@ class AnnotationsBuilderScope internal constructor(private val builder: (String)
     }
 }
 
+/**
+ * DSL scope for assigning values to annotation fields.
+ */
 @BytecodeGen
 class AnnotationBuilderScope internal constructor(private val builder: AnnotationBuilder) {
 
@@ -377,73 +576,190 @@ class AnnotationBuilderScope internal constructor(private val builder: Annotatio
         operator fun set(field: String, value: Array<ClassType>) = builder.put(field, value)
     }
 
+    /**
+     * Provides access to annotation fields through Kotlin's indexed assignment
+     * syntax.
+     *
+     * Example:
+     *
+     * ```
+     * fields["value"] = "example"
+     * fields["count"] = 42
+     * ```
+     */
     val fields = Fields()
 
 }
 
+/**
+ * DSL scope for declaring method parameters.
+ */
 @BytecodeGen
 class ParametersBuilderScope internal constructor(private val builder: ParametersBuilder) {
+
+    /**
+     * Adds a method parameter.
+     *
+     * @param name parameter name.
+     * @param type parameter type.
+     */
     fun parameter(name: String, type: Type) {
         builder.parameter(name, type)
     }
 }
 
-
+/**
+ * DSL scope for constructing a method body.
+ *
+ * Provides operations for values, locals, labels, control flow, method returns,
+ * field and local stores, loops, branches, switches, exception handling,
+ * superclass calls, and raw JVM instructions.
+ */
 @BytecodeGen
 class MethodBodyBuilderScope(
     private val flow: ControlFlowBuilder,
     private val values: ValueBuilder
 ) {
 
+    /**
+     * Retrieves a method parameter by name.
+     *
+     * @param name parameter name.
+     * @return pointer to the parameter's local-variable slot.
+     *
+     * @throws IllegalArgumentException if no parameter with the given name exists.
+     */
     fun parameter(name: String): LocalPtr = values.parameter(name)
 
+    /**
+     * Allocates a new local-variable slot.
+     *
+     * @param type type stored in the local.
+     * @return pointer to the newly allocated local.
+     */
     fun local(type: Type): LocalPtr = values.local(type)
 
+    /**
+     * Creates a new bytecode label.
+     *
+     * @return newly allocated label.
+     */
     fun Label(): Label = values.label()
 
+    /**
+     * The current instance (`this`).
+     *
+     * Accessing this property from a static method is invalid.
+     */
     val THIS: Value get() = values.THIS
 
+    /**
+     * Associates subsequently generated bytecode with a source line.
+     *
+     * @param n source line number.
+     */
     fun line(n: Int) {
         flow.line(n)
     }
 
+    /**
+     * Places a label at the current position.
+     *
+     * @param label label to place.
+     */
     fun placeLabel(label: Label) {
         flow.placeLabel(label)
     }
 
+    /**
+     * Unconditionally jumps to a label.
+     *
+     * @param label destination label.
+     */
     fun goto(label: Label) {
         flow.goto(label)
     }
 
+    /**
+     * Evaluates a value as a statement.
+     *
+     * @param pop when `true`, discards the resulting value. When `false`, leaves
+     * the value on the operand stack.
+     */
     fun Value.eval(pop: Boolean = true) {
         flow.eval(this, pop)
     }
 
+    /**
+     * Returns from the current method.
+     *
+     * @param value value to return, or `null` for a void return.
+     */
     fun returns(value: Value? = null) {
         flow.returns(value)
     }
 
+    /**
+     * Stores a value through a local-variable pointer.
+     *
+     * This operator allows Kotlin property-assignment syntax such as:
+     *
+     * ```
+     * local = value
+     * ```
+     */
     operator fun LocalPtr.setValue(receiver: Nothing?, property: KProperty<*>, value: Value) {
         store(this, value)
     }
 
+    /**
+     * Stores a value into an array element.
+     *
+     * Allows array assignment syntax:
+     *
+     * ```
+     * array[index] = value
+     * ```
+     */
     operator fun Value.set(index: Value, value: Value) {
         store(value[index], value)
     }
 
+    /**
+     * Stores a value into an instance or static field pointer.
+     */
     fun FieldPtr.set(value: Value) {
         store(this, value)
     }
 
+    /**
+     * Emits a store operation.
+     *
+     * @param ptr destination pointer.
+     * @param value value to store.
+     */
     fun store(ptr: Ptr, value: Value) {
         flow.store(ptr, value)
     }
 
+    /**
+     * Represents the control-flow labels associated with a loop.
+     *
+     * @property head label at the beginning of the loop.
+     * @property tail label at the loop exit, when one has been created.
+     */
     inner class Loop(
         internal val head: Label = values.label(),
         internal var tail: Label? = null,
     )
 
+    /**
+     * Creates an unconditional loop.
+     *
+     * The generated body is followed by a jump back to the loop head.
+     *
+     * @param body loop body.
+     */
     fun loop(body: MethodBodyBuilderScope.(Loop) -> Unit) {
         val loop = Loop()
         flow.placeLabel(loop.head)
@@ -456,6 +772,12 @@ class MethodBodyBuilderScope(
         }
     }
 
+    /**
+     * Creates a loop that executes while [condition] is true.
+     *
+     * @param condition loop condition.
+     * @param body loop body.
+     */
     fun whileLoop(condition: Value, body: MethodBodyBuilderScope.(Loop) -> Unit) {
         loop { loop ->
             ifTrue(!condition) {
@@ -465,9 +787,20 @@ class MethodBodyBuilderScope(
         }
     }
 
+    /**
+     * Creates a loop controlled by a Kotlin boolean constant.
+     *
+     * @param condition loop condition.
+     * @param body loop body.
+     */
     fun whileLoop(condition: Boolean, body: MethodBodyBuilderScope.(Loop) -> Unit) =
         whileLoop(bool(condition), body)
 
+    /**
+     * Exits/Breaks the supplied loop.
+     *
+     * @param loop loop to exit.
+     */
     fun escape(loop: Loop) {
         var tail = loop.tail
         if (tail == null) tail = values.label()
@@ -475,10 +808,24 @@ class MethodBodyBuilderScope(
         goto(tail)
     }
 
+    /**
+     * Jumps to (continues at) the beginning of the supplied loop.
+     *
+     * @param loop loop whose next iteration should begin.
+     */
     fun next(loop: Loop) {
         goto(loop.head)
     }
 
+    /**
+     * Creates a conditional branch.
+     *
+     * The [body] is executed when [condition] evaluates to true.
+     *
+     * @param condition branch condition.
+     * @param body body of the true branch.
+     * @return builder used to optionally define an `else` branch.
+     */
     fun ifTrue(condition: Value, body: MethodBodyBuilderScope.() -> Unit): BranchExtensionBuilder {
         val thenFlow = flow.branch(condition)
         val scope = MethodBodyBuilderScope(thenFlow, values)
@@ -487,14 +834,29 @@ class MethodBodyBuilderScope(
         return BranchExtensionBuilder(branchCompleter, values)
     }
 
+    /**
+     * Creates a conditional branch using a constant boolean condition.
+     */
     fun ifTrue(condition: Boolean, body: MethodBodyBuilderScope.() -> Unit): BranchExtensionBuilder  = ifTrue(bool(condition), body)
 
+    /**
+     * Creates an integer switch statement.
+     *
+     * @param value value used for dispatch.
+     * @param block switch cases and default branch.
+     */
     fun switch(value: Value, block: SwitchBuilderScope.() -> Unit) {
         val switchBuilder = flow.switch(value)
         val scope = SwitchBuilderScope( switchBuilder, values)
         scope.block()
     }
 
+    /**
+     * Creates a try/catch/finally control-flow region.
+     *
+     * @param block body of the protected region.
+     * @return builder used to add rescue handlers or a finally block.
+     */
     fun attempt(block: MethodBodyBuilderScope.() -> Unit): AttemptExtensionBuilder {
         val attemptFlow = flow.attempt()
         val scope = MethodBodyBuilderScope(attemptFlow, values)
@@ -503,21 +865,45 @@ class MethodBodyBuilderScope(
         return AttemptExtensionBuilder(attemptCompleter, values)
     }
 
+    /**
+     * Invokes the superclass constructor.
+     *
+     * This operation is only valid inside a constructor and must be the first
+     * generated statement of that constructor, apart from line-number metadata.
+     *
+     * @param arguments constructor arguments.
+     *
+     * @throws IllegalStateException if called outside a constructor or after
+     * another executable statement.
+     */
     fun superCall(vararg arguments: Value) {
         flow.superCall(*arguments)
     }
 
+    /**
+     * Opens a scope for emitting raw JVM instructions.
+     *
+     * @param block raw instruction DSL block.
+     */
     fun asm(block: AsmGeneratorScope.() -> Unit) {
         AsmGeneratorScope(flow).also(block)
     }
 }
 
-
+/**
+ * Completes a conditional branch and optionally provides an `else` branch.
+ */
 @BytecodeGen
 class BranchExtensionBuilder internal constructor(
     private val branchCompleter: BranchCompleter,
     private val values: ValueBuilder
 ) {
+
+    /**
+     * Defines the `else` branch.
+     *
+     * @param body body executed when the original condition is false.
+     */
     fun otherwise(body: MethodBodyBuilderScope.() -> Unit) {
         val flow = branchCompleter.otherwise()
         val scope = MethodBodyBuilderScope(flow, values)
@@ -525,18 +911,29 @@ class BranchExtensionBuilder internal constructor(
         flow.close()
     }
 
+    /**
+     * Completes the branch without an `else` branch.
+     */
     fun eval() {
         branchCompleter.complete()
     }
 }
 
-
+/**
+ * DSL scope for defining integer switch cases.
+ */
 @BytecodeGen
 class SwitchBuilderScope internal constructor(
     private val builder: SwitchBuilder,
     private val values: ValueBuilder
 ) {
 
+    /**
+     * Defines a switch case.
+     *
+     * @param key integer case value.
+     * @param body case body.
+     */
     fun case(key: Int, body: MethodBodyBuilderScope.() -> Unit) {
         val caseFlow = builder.case(key)
         val scope = MethodBodyBuilderScope(caseFlow, values)
@@ -544,6 +941,11 @@ class SwitchBuilderScope internal constructor(
         caseFlow.close()
     }
 
+    /**
+     * Defines the default switch branch.
+     *
+     * @param body default branch body.
+     */
     fun otherwise(body: MethodBodyBuilderScope.() -> Unit) {
         val otherwiseScope = builder.otherwise()
         val scope = MethodBodyBuilderScope(otherwiseScope, values)
@@ -554,12 +956,22 @@ class SwitchBuilderScope internal constructor(
 }
 
 
+/**
+ * DSL scope for adding exception handlers to a try region.
+ */
 @BytecodeGen
 class AttemptExtensionBuilder internal constructor(
     private val attemptCompleter: AttemptCompleter,
     private val values: ValueBuilder
 ) {
 
+    /**
+     * Adds a catch handler for the specified exception type.
+     *
+     * @param type exception class handled by this rescue block.
+     * @param body handler body.
+     * @return this builder for additional handlers.
+     */
     fun rescue(type: ClassType, body: MethodBodyBuilderScope.() -> Unit): AttemptExtensionBuilder {
         val flow = attemptCompleter.rescue(type)
         val scope = MethodBodyBuilderScope(flow, values)
@@ -568,6 +980,11 @@ class AttemptExtensionBuilder internal constructor(
         return this
     }
 
+    /**
+     * Adds a finally/catch-all handler.
+     *
+     * @param body finally handler body.
+     */
     fun finally(body: MethodBodyBuilderScope.() -> Unit) {
         val flow = attemptCompleter.finally()
         val scope = MethodBodyBuilderScope(flow, values)
@@ -576,6 +993,31 @@ class AttemptExtensionBuilder internal constructor(
     }
 }
 
+/**
+ * DSL scope for emitting raw JVM bytecode instructions.
+ *
+ * Instruction names intentionally follow the JVM opcode names, for example:
+ *
+ * ```
+ * asm {
+ *     ICONST_1
+ *     IRETURN
+ * }
+ * ```
+ *
+ * Instructions requiring operands are exposed as function-valued properties:
+ *
+ * ```
+ * asm {
+ *     ILOAD(1)
+ *     GETFIELD(FieldSignature(...))
+ *     GOTO(label)
+ * }
+ * ```
+ *
+ * This scope bypasses the higher-level value and control-flow abstractions and
+ * should therefore be used when direct JVM instruction control is required.
+ */
 @BytecodeGen
 class AsmGeneratorScope internal constructor(private val flow: ControlFlowBuilder) {
 
@@ -620,7 +1062,7 @@ class AsmGeneratorScope internal constructor(private val flow: ControlFlowBuilde
     }
 
     val LCONST_1: Unit get() {
-        flow.instruction(LConst0Instruction)
+        flow.instruction(LConst1Instruction)
     }
 
     val FCONST_0: Unit get() {
@@ -868,11 +1310,11 @@ class AsmGeneratorScope internal constructor(private val flow: ControlFlowBuilde
     }
 
     val FREM: Unit get() {
-        flow.instruction(FReturnInstruction)
+        flow.instruction(FRemInstruction)
     }
 
     val DREM: Unit get() {
-        flow.instruction(DReturnInstruction)
+        flow.instruction(DRemInstruction)
     }
 
     val INEG: Unit get() {
