@@ -571,6 +571,9 @@ object ASM : BytecodeGenerator, BytecodeParser {
         private val handlers = mutableListOf<ExceptionHandler>()
         private val labelMap = mutableMapOf<AsmLabel, Label>()
 
+        private val definedLabels = mutableMapOf<AsmLabel, Instruction>()
+        private val referencedLabels = mutableSetOf<AsmLabel>()
+
         private fun label(l: AsmLabel): Label = labelMap.getOrPut(l) { Label() }
 
         override fun visitAnnotation(descriptor: String, visible: Boolean): AnnotationVisitor {
@@ -587,10 +590,15 @@ object ASM : BytecodeGenerator, BytecodeParser {
                 handler = label(handler),
                 type = type?.let { ClassType(internalToDotted(it)) },
             )
+            referencedLabels += start
+            referencedLabels += end
+            referencedLabels += handler
         }
 
         override fun visitLabel(l: AsmLabel) {
-            instructions += LabelInstruction(label(l))
+            val inst = LabelInstruction(label(l))
+            instructions += inst
+            definedLabels[l] = inst
         }
 
         override fun visitLineNumber(line: Int, start: AsmLabel) {
@@ -854,6 +862,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
 
         override fun visitJumpInsn(opcode: Int, l: AsmLabel) {
             val target = label(l)
+            referencedLabels += l
             instructions += when (opcode) {
                 Opcodes.IFEQ -> IfEqInstruction(target)
                 Opcodes.IFNE -> IfNeInstruction(target)
@@ -892,11 +901,15 @@ object ASM : BytecodeGenerator, BytecodeParser {
         override fun visitTableSwitchInsn(min: Int, max: Int, dflt: AsmLabel, vararg labels: AsmLabel) {
             val cases = (min..max).zip(labels).associate { (key, l) -> key to label(l) }
             instructions += TableSwitchInstruction(label(dflt), cases)
+            referencedLabels += dflt
+            referencedLabels += labels
         }
 
         override fun visitLookupSwitchInsn(dflt: AsmLabel, keys: IntArray, labels: Array<out AsmLabel>) {
             val cases = keys.zip(labels).associate { (key, l) -> key to label(l) }
             instructions += LookupSwitchInstruction(label(dflt), cases)
+            referencedLabels += dflt
+            referencedLabels += labels
         }
 
         override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) {
@@ -907,6 +920,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
         }
 
         override fun visitEnd() {
+            val debugOnlyInstructions = definedLabels.filterKeys { it !in referencedLabels }.values.toSet()
             val method = if (isAbstractOrNative) {
                 AbstractMethod(owner, signature, flags, annotations)
             } else {
@@ -915,7 +929,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
                     signature = signature,
                     accessFlags = flags,
                     annotations = annotations,
-                    body = MethodBody(instructions.toList(), handlers.toList()),
+                    body = MethodBody(instructions.filter { it !in debugOnlyInstructions }, handlers.toList()),
                 )
             }
             onComplete(method)

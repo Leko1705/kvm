@@ -52,9 +52,9 @@ fun List<Instruction>.cfg(): ControlFlowGraph {
     val leaderList = leaders.toList()
 
     // (start, endExclusive) ranges — one per basic block
-    val ranges = leaderList.mapIndexed { idx, start ->
-        start to (leaderList.getOrElse(idx + 1) { instrs.size })
-    }
+    val ranges = (leaderList + instrs.size)
+        .windowed(size = 2)
+        .map { it.first() to it.last() }
 
     // ── Phase 2: block construction + edge wiring ───────────────────────────
 
