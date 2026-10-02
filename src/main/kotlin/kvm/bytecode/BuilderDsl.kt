@@ -672,7 +672,7 @@ class AsmGeneratorScope internal constructor(private val flow: ControlFlowBuilde
     }
 
     val ALOAD: (Int) -> Unit get() = {
-        flow.instruction(DLoadInstruction(it))
+        flow.instruction(ALoadInstruction(it))
     }
 
     val IALOAD: Unit get() {
