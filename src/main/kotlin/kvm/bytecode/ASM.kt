@@ -33,7 +33,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
                 null,   // generic signature — null for now
                 null,   // constant value — null for now
             )
-            writeAnnotations(field.annotations) { desc, visible -> writer.visitAnnotation(desc, visible) }
+            writeAnnotations(field.annotations) { desc, visible -> fv.visitAnnotation(desc, visible) }
             fv.visitEnd()
         }
 
@@ -47,7 +47,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
                 null,   // generic signature — null for now
                 null,   // exceptions — null for now
             )
-            writeAnnotations(method.annotations) { desc, visible -> writer.visitAnnotation(desc, visible) }
+            writeAnnotations(method.annotations) { desc, visible -> mv.visitAnnotation(desc, visible) }
             mv.visitCode()
             when (method) {
                 is ConcreteMethod -> generate(method.body, mv)
@@ -414,7 +414,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
 //
 //     override fun parse(bytes: ByteArray): ClassDeclaration = asmParse(bytes)
 
-    internal fun asmParse(bytes: ByteArray): ClassDeclaration {
+    private fun asmParse(bytes: ByteArray): ClassDeclaration {
         val reader = ClassReader(bytes)
         val visitor = KvmClassVisitor()
         reader.accept(visitor, ClassReader.SKIP_FRAMES) // frames are recomputed by generate() anyway
@@ -754,8 +754,8 @@ object ASM : BytecodeGenerator, BytecodeParser {
             instructions += when (opcode) {
                 Opcodes.NEW -> NewInstruction(ClassType(internalToDotted(type)))
                 Opcodes.ANEWARRAY -> ANewArrayInstruction(anewarrayOperandToType(type), dimensions = 1)
-                Opcodes.CHECKCAST -> CheckCastInstruction(requireClassType(type.parseJvmName()))
-                Opcodes.INSTANCEOF -> InstanceOfInstruction(requireClassType(type.parseJvmName()))
+                Opcodes.CHECKCAST -> CheckCastInstruction(requireClassType("L$type;".parseJvmName()))
+                Opcodes.INSTANCEOF -> InstanceOfInstruction(requireClassType("L$type;".parseJvmName()))
                 else -> error("Unhandled type-operand opcode: $opcode")
             }
         }
