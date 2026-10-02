@@ -17,7 +17,7 @@ import com.leko.kvm.typing.VoidType
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-data class Label @OptIn(ExperimentalUuidApi::class) constructor(val name: String = Uuid.generateV4().toString())
+data class Label @OptIn(ExperimentalUuidApi::class) constructor(val name: String = Uuid.random().toString())
 
 sealed interface Instruction
 
