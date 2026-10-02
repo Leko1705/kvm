@@ -39,7 +39,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
             val descriptor = buildMethodDescriptor(method.signature)
             val mv = writer.visitMethod(
                 method.accessFlags.bits,
-                method.signature.name,
+                method.name,
                 descriptor,
                 null,   // generic signature — null for now
                 null,   // exceptions — null for now

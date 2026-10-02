@@ -12,7 +12,7 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
     implementation("org.ow2.asm:asm:9.7.1")
-    // implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 }
 
 kotlin {

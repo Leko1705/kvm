@@ -18,6 +18,8 @@ data class ConcreteClass(
     val accessFlags: AccessFlags,
 ) : ClassDeclaration
 
+val ConcreteClass.superTypes: List<ClassType> get() = listOfNotNull(superClass) + interfaces
+
 data class PhantomClass(
     override val type: ClassType,
     override val methods: List<PhantomMethod> = emptyList(),

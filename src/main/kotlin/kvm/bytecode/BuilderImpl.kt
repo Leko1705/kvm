@@ -12,6 +12,7 @@ import com.leko.kvm.MethodDescriptor
 import com.leko.kvm.MethodFlags
 import com.leko.kvm.MethodSignature
 import com.leko.kvm.PresentMethodDeclaration
+import com.leko.kvm.name
 import com.leko.kvm.typing.ClassType
 import com.leko.kvm.typing.Type
 import com.leko.kvm.typing.VoidType
@@ -202,7 +203,7 @@ class ClassBuilderImpl internal constructor(private val thisType: ClassType): Co
 
     override fun build(): ConcreteClass {
         todos.forEach { it.run() }
-        if (!methods.any { it.signature.name == "<init>" }) {
+        if (!methods.any { it.name == "<init>" }) {
             throw IllegalStateException("no constructor defined")
         }
         return ConcreteClass(

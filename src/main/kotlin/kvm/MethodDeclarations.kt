@@ -39,6 +39,12 @@ sealed interface MethodDeclaration : Element {
     val signature: MethodSignature
 }
 
+val MethodDeclaration.name: String get() = signature.name
+
+val MethodDeclaration.parameterTypes: List<Type> get() = signature.parameterTypes
+
+val MethodDeclaration.returnType: Type get() = signature.returnType
+
 sealed interface PresentMethodDeclaration : MethodDeclaration {
     val accessFlags: MethodFlags
     val annotations: List<KvmAnnotation>

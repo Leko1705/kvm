@@ -91,7 +91,7 @@ Then use the project for analysis
 
 val fooMethod = project.presentMethods
     .filterIsInstance<ConcreteMethod>()
-    .first { it.signature.name == "foo" }
+    .first { it.name == "foo" }
 
 val methodBody: MethodBody = fooMethod.body
 

@@ -2,14 +2,15 @@ package com.leko.kvm.typing
 
 import com.leko.kvm.*
 
-class ClassHierarchy(classFiles: Iterable<ClassDeclaration>) {
+class ClassHierarchy(classDecls: Iterable<ClassDeclaration>) {
 
     internal constructor(project: Project) : this(project.jars.flatMap { it.classFiles.asSequence() }.map { it.declaration })
 
-    private val byType: Map<ClassType, ClassDeclaration> =
-        classFiles.associateBy { it.type }
+    private val byType: Map<ClassType, ClassDeclaration> by lazy {
+        classDecls.associateBy { it.type }
+    }
 
-    private val directSubtypes: Map<ClassType, List<ClassType>> =
+    private val directSubtypes: Map<ClassType, List<ClassType>> by lazy {
         buildMap<ClassType, MutableList<ClassType>> {
             for (decl in byType.values) {
                 if (decl !is ConcreteClass) continue
@@ -18,6 +19,7 @@ class ClassHierarchy(classFiles: Iterable<ClassDeclaration>) {
                 }
             }
         }
+    }
 
     fun declarationOf(type: ClassType): ClassDeclaration = byType[type] ?: PhantomClass(type, emptyList(), emptyList())
 
@@ -32,6 +34,11 @@ class ClassHierarchy(classFiles: Iterable<ClassDeclaration>) {
         }
         if (!inclusive) result.remove(type)
         return result
+    }
+
+    fun supertypes(type: ClassType, inclusive: Boolean = false): List<ClassType> {
+        val superTypes = (declarationOf(type) as? ConcreteClass)?.superTypes ?: emptyList()
+        return if (inclusive) superTypes + type else superTypes
     }
 
     /** Standard method-resolution walk: first class from `startType` upward that declares it. */

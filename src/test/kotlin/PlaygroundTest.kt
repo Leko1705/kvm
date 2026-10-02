@@ -3,9 +3,11 @@ import com.leko.kvm.bytecode.buildClass
 import com.leko.kvm.bytecode.call
 import com.leko.kvm.callgraph.callGraph
 import com.leko.kvm.constructors
+import com.leko.kvm.name
 import com.leko.kvm.typing.ClassType
 import com.leko.kvm.typing.IntType
 import com.leko.kvm.typing.VoidType
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
 
@@ -32,9 +34,9 @@ class PlaygroundTest {
         }
 
         val const = clazz.constructors.first()
-        val foo = clazz.methods.filterIsInstance<ConcreteMethod>().first { it.signature.name == "foo" }
+        val foo = clazz.methods.filterIsInstance<ConcreteMethod>().first { it.name == "foo" }
 
-        val cg = clazz.callGraph()
+        val cg = runBlocking { clazz.callGraph() }
         for (edge in cg.edges) {
             println(edge)
         }

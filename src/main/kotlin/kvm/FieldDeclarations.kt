@@ -17,6 +17,12 @@ sealed interface FieldDeclaration : Element {
     val accessFlags: FieldFlags
 }
 
+val FieldDeclaration.owner: ClassType get() = signature.owner
+
+val FieldDeclaration.name: String get() = signature.name
+
+val FieldDeclaration.type: Type get() = signature.type
+
 data class ConcreteField(
     override val signature: FieldSignature,
     override val accessFlags: FieldFlags,
