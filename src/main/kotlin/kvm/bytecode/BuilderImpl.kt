@@ -369,8 +369,9 @@ class MethodBodyBuilderImpl internal constructor(
 
     }
 
-    override fun eval(value: Value): ControlFlowBuilder {
-        statements.add(Pop(value))
+    override fun eval(value: Value, pop: Boolean): ControlFlowBuilder {
+        if (pop) statements.add(Pop(value))
+        else statements.add(Pop(value))
         return this
     }
 

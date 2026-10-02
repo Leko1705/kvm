@@ -414,8 +414,8 @@ class MethodBodyBuilderScope(
         flow.goto(label)
     }
 
-    fun Value.eval() {
-        flow.eval(this)
+    fun Value.eval(pop: Boolean = true) {
+        flow.eval(this, pop)
     }
 
     fun returns(value: Value? = null) {

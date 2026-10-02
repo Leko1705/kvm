@@ -196,7 +196,7 @@ interface ControlFlowBuilder {
 
     fun branch(condition: Value): ScopedControlFlowBuilder<BranchCompleter>
 
-    fun eval(value: Value): ControlFlowBuilder
+    fun eval(value: Value, pop: Boolean = true): ControlFlowBuilder
 
     fun returns(value: Value? = null): ControlFlowBuilder
 
