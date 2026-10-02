@@ -24,9 +24,17 @@ internal fun Project.annotatedMethods(annotation: ClassType): Sequence<MethodDec
         }
 
 inline fun <reified T : Element> Project.annotated(annotation: ClassType): Sequence<T> = when (T::class) {
-    ClassDeclaration::class -> @Suppress("UNCHECKED_CAST") (annotatedClasses(annotation) as Sequence<T>)
-    FieldDeclaration::class -> @Suppress("UNCHECKED_CAST") (annotatedFields(annotation) as Sequence<T>)
-    MethodDeclaration::class -> @Suppress("UNCHECKED_CAST") (annotatedMethods(annotation) as Sequence<T>)
+    ClassDeclaration::class -> annotatedClasses(annotation).filterIsInstance<T>()
+    ConcreteClass::class -> annotatedClasses(annotation).filterIsInstance<T>()
+    PhantomClass::class -> emptySequence()
+    FieldDeclaration::class -> annotatedFields(annotation).filterIsInstance<T>()
+    ConcreteField::class -> annotatedFields(annotation).filterIsInstance<T>()
+    PhantomField::class -> emptySequence()
+    MethodDeclaration::class -> annotatedMethods(annotation).filterIsInstance<T>()
+    PresentMethodDeclaration::class -> annotatedMethods(annotation).filterIsInstance<T>()
+    ConcreteMethod::class -> annotatedMethods(annotation).filterIsInstance<T>()
+    AbstractMethod::class -> annotatedMethods(annotation).filterIsInstance<T>()
+    PhantomMethod::class -> emptySequence()
     else -> error("Unexpected type ${T::class}")
 }
 
