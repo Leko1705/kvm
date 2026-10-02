@@ -203,8 +203,12 @@ class ClassBuilderImpl internal constructor(private val thisType: ClassType): Co
 
     override fun build(): ConcreteClass {
         todos.forEach { it.run() }
-        if (!methods.any { it.name == "<init>" }) {
+        val hasConstructor = methods.any { it.signature.name == "<init>" }
+        if (!hasConstructor && flags.isInterface) {
             throw IllegalStateException("no constructor defined")
+        }
+        if (hasConstructor && flags.isInterface) {
+            throw IllegalStateException("constructor not allowed in interface")
         }
         return ConcreteClass(
             thisType,
