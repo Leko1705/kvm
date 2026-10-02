@@ -6,74 +6,74 @@ interface CallGraphSpecification {
     companion object Companion
 
     /** Should we scan this method's body? Checked before touching `body`. */
-    suspend fun shouldExpand(method: ConcreteMethod): Boolean
+    fun shouldExpand(method: ConcreteMethod): Boolean
 
     /** Should we resolve targets for this site? Checked before resolution. */
-    suspend fun shouldResolve(site: CallSite): Boolean
+    fun shouldResolve(site: CallSite): Boolean
 
     /** Should this resolved edge be recorded? Checked after resolution. */
-    suspend fun shouldInclude(edge: CallEdge): Boolean
+    fun shouldInclude(edge: CallEdge): Boolean
 
 }
 
 
 abstract class AbstractCallGraphSpecification: CallGraphSpecification {
 
-    override suspend fun shouldExpand(method: ConcreteMethod): Boolean = true
+    override fun shouldExpand(method: ConcreteMethod): Boolean = true
 
-    override suspend fun shouldResolve(site: CallSite): Boolean = true
+    override fun shouldResolve(site: CallSite): Boolean = true
 
-    override suspend fun shouldInclude(edge: CallEdge): Boolean = true
+    override fun shouldInclude(edge: CallEdge): Boolean = true
 
 }
 
 data object NoCallGraphSpecification : AbstractCallGraphSpecification()
 
 data object EmptyCallGraphSpecification : AbstractCallGraphSpecification() {
-    override suspend fun shouldExpand(method: ConcreteMethod): Boolean = false
-    override suspend fun shouldResolve(site: CallSite): Boolean = false
-    override suspend fun shouldInclude(edge: CallEdge): Boolean = false
+    override fun shouldExpand(method: ConcreteMethod): Boolean = false
+    override fun shouldResolve(site: CallSite): Boolean = false
+    override fun shouldInclude(edge: CallEdge): Boolean = false
 }
 
 
 fun CallGraphSpecification.Companion.shouldExpand(
-    predicate: suspend (ConcreteMethod) -> Boolean)
+    predicate: (ConcreteMethod) -> Boolean)
 : CallGraphSpecification = object: AbstractCallGraphSpecification() {
-    override suspend fun shouldExpand(method: ConcreteMethod): Boolean = predicate(method)
+    override fun shouldExpand(method: ConcreteMethod): Boolean = predicate(method)
 }
 
 fun CallGraphSpecification.Companion.shouldResolve(
-    predicate: suspend (CallSite) -> Boolean)
+    predicate: (CallSite) -> Boolean)
         : CallGraphSpecification = object: AbstractCallGraphSpecification() {
-    override suspend fun shouldResolve(site: CallSite): Boolean = predicate(site)
+    override fun shouldResolve(site: CallSite): Boolean = predicate(site)
 }
 
 fun CallGraphSpecification.Companion.shouldInclude(
-    predicate: suspend (CallEdge) -> Boolean
+    predicate: (CallEdge) -> Boolean
 ): CallGraphSpecification = object: AbstractCallGraphSpecification() {
-    override suspend fun shouldInclude(edge: CallEdge): Boolean = predicate(edge)
+    override fun shouldInclude(edge: CallEdge): Boolean = predicate(edge)
 }
 
 private fun CallGraphSpecification.map(
-    map: suspend (Boolean) -> Boolean
+    map: (Boolean) -> Boolean
 ): CallGraphSpecification = object : CallGraphSpecification {
-    override suspend fun shouldExpand(method: ConcreteMethod): Boolean =
+    override fun shouldExpand(method: ConcreteMethod): Boolean =
         map(this@map.shouldExpand(method))
-    override suspend fun shouldResolve(site: CallSite): Boolean =
+    override fun shouldResolve(site: CallSite): Boolean =
         map(this@map.shouldResolve(site))
-    override suspend fun shouldInclude(edge: CallEdge): Boolean =
+    override fun shouldInclude(edge: CallEdge): Boolean =
         map(this@map.shouldInclude(edge))
 }
 
 private fun CallGraphSpecification.merge(
     other: CallGraphSpecification,
-    merge: suspend (Boolean, Boolean) -> Boolean
+    merge: (Boolean, Boolean) -> Boolean
 ): CallGraphSpecification = object : CallGraphSpecification {
-    override suspend fun shouldExpand(method: ConcreteMethod): Boolean =
+    override fun shouldExpand(method: ConcreteMethod): Boolean =
         merge(this@merge.shouldExpand(method), other.shouldExpand(method))
-    override suspend fun shouldResolve(site: CallSite): Boolean =
+    override fun shouldResolve(site: CallSite): Boolean =
         merge(this@merge.shouldResolve(site), other.shouldResolve(site))
-    override suspend fun shouldInclude(edge: CallEdge): Boolean =
+    override fun shouldInclude(edge: CallEdge): Boolean =
         merge(this@merge.shouldInclude(edge), other.shouldInclude(edge))
 }
 
@@ -122,3 +122,8 @@ operator fun CallGraphSpecification.minus(other: CallGraphSpecification): CallGr
         !other
     else
         this and !other
+
+inline fun CallGraph.filter(filter: (CallEdge) -> Boolean): CallGraph =
+    CallGraphImpl(entryPoints, edges.filter(filter))
+
+fun CallGraph.filter(spec: CallGraphSpecification): CallGraph = filter(spec::shouldInclude)
