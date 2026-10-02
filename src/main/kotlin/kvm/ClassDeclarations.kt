@@ -15,7 +15,7 @@ data class ConcreteClass(
     val annotations: List<KvmAnnotation>,
     override val methods: List<PresentMethodDeclaration>,
     override val fields: List<ConcreteField>,
-    val accessFlags: AccessFlags,
+    val accessFlags: ClassFlags,
 ) : ClassDeclaration
 
 val ConcreteClass.superTypes: List<ClassType> get() = listOfNotNull(superClass) + interfaces
