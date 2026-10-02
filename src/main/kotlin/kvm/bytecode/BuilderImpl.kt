@@ -503,7 +503,7 @@ class MethodBodyBuilderImpl internal constructor(
     }
 
     override fun instruction(instruction: Instruction): ControlFlowBuilder {
-        statements.add(Asm(instruction))
+        statements.add(Inst(instruction))
         return this
     }
 

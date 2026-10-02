@@ -304,7 +304,7 @@ data class New(
 
 interface Statement: JBCTree
 
-data class Asm(val instruction: Instruction): Statement {
+data class Inst(val instruction: Instruction): Statement {
     override fun generate(generator: InstructionGenerator) {
         generator.emit(instruction)
     }
