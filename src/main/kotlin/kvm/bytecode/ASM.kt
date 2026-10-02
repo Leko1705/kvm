@@ -2,9 +2,8 @@ package com.leko.kvm.bytecode
 
 import com.leko.kvm.*
 import com.leko.kvm.typing.*
+import com.leko.kvm.typing.Type
 import org.objectweb.asm.*
-import java.lang.invoke.MethodHandle
-import kotlin.reflect.typeOf
 import org.objectweb.asm.Label as AsmLabel
 import org.objectweb.asm.Type as AsmType
 
@@ -23,15 +22,19 @@ object ASM : BytecodeGenerator, BytecodeParser {
             clazz.interfaces.map { it.jvmName }.toTypedArray()
         )
 
+        writeAnnotations(clazz.annotations) { desc, visible -> writer.visitAnnotation(desc, visible) }
+
         // fields
         clazz.fields.forEach { field ->
-            writer.visitField(
+            val fv = writer.visitField(
                 field.accessFlags.bits,
                 field.signature.name,
                 field.signature.type.jvmName,
                 null,   // generic signature — null for now
                 null,   // constant value — null for now
-            )?.visitEnd()
+            )
+            writeAnnotations(field.annotations) { desc, visible -> writer.visitAnnotation(desc, visible) }
+            fv.visitEnd()
         }
 
         // methods
@@ -44,6 +47,7 @@ object ASM : BytecodeGenerator, BytecodeParser {
                 null,   // generic signature — null for now
                 null,   // exceptions — null for now
             )
+            writeAnnotations(method.annotations) { desc, visible -> writer.visitAnnotation(desc, visible) }
             mv.visitCode()
             when (method) {
                 is ConcreteMethod -> generate(method.body, mv)
@@ -56,6 +60,36 @@ object ASM : BytecodeGenerator, BytecodeParser {
 
         writer.visitEnd()
         return writer.toByteArray()
+    }
+
+    private fun dottedToDescriptor(dottedName: String): String =
+        "L${dottedName.replace('.', '/')};"
+
+    private fun writeAnnotations(
+        annotations: List<KvmAnnotation>,
+        visitAnnotation: (descriptor: String, visible: Boolean) -> AnnotationVisitor,
+    ) {
+        annotations.forEach { ann ->
+            val av = visitAnnotation(dottedToDescriptor(ann.name), true)
+            ann.values.forEach { (key, value) -> writeAnnotationValue(av, key, value) }
+            av.visitEnd()
+        }
+    }
+
+    private fun writeAnnotationValue(av: AnnotationVisitor, name: String?, value: Any) {
+        when (value) {
+            is List<*> -> {
+                val arr = av.visitArray(name)
+                value.forEach { writeAnnotationValue(arr, null, it!!) }
+                arr.visitEnd()
+            }
+            is KvmAnnotation -> {
+                val nested = av.visitAnnotation(name, dottedToDescriptor(value.name))
+                value.values.forEach { (k, v) -> writeAnnotationValue(nested, k, v) }
+                nested.visitEnd()
+            }
+            else -> av.visit(name, value)
+        }
     }
 
     private fun asmLabel(): AsmLabel = AsmLabel()
@@ -788,10 +822,25 @@ object ASM : BytecodeGenerator, BytecodeParser {
             is Long -> BootstrapArgument.LongArg(this)
             is Double -> BootstrapArgument.DoubleArg(this)
             is String -> BootstrapArgument.StringArg(this)
-            is AsmType -> BootstrapArgument.TypeArg(className.parseJvmName() as ClassType)
+            is AsmType -> {
+                when (sort) {
+                    AsmType.METHOD -> BootstrapArgument.MethodTypeArg(toMethodDescriptorModel())
+                    else -> BootstrapArgument.TypeArg(className.parseJvmName() as ClassType)
+                }
+            }
             is Handle -> BootstrapArgument.HandleArg(this.toMethodHandle())
             is org.objectweb.asm.ConstantDynamic -> BootstrapArgument.DynamicArg(this.toConstantDynamicModel())
             else -> error("Unsupported bootstrap argument type: ${this::class.qualifiedName}")
+        }
+
+        private fun AsmType.toMethodDescriptorModel(): MethodDescriptor {
+            require(sort == AsmType.METHOD) {
+                "Expected a METHOD-sorted Type, got sort=$sort ($descriptor)"
+            }
+            return MethodDescriptor(
+                parameterTypes = argumentTypes.map { asmTypeToDomain(it) },
+                returnType = asmTypeToDomain(returnType),
+            )
         }
 
         private fun org.objectweb.asm.ConstantDynamic.toConstantDynamicModel(): ConstantDynamic =

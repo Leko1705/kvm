@@ -1,6 +1,7 @@
 package com.leko.kvm.bytecode
 
 import com.leko.kvm.FieldSignature
+import com.leko.kvm.MethodDescriptor
 import com.leko.kvm.MethodSignature
 import com.leko.kvm.typing.BooleanType
 import com.leko.kvm.typing.ByteType
@@ -507,6 +508,7 @@ sealed interface BootstrapArgument {
     data class DoubleArg(val value: Double) : BootstrapArgument
     data class StringArg(val value: String) : BootstrapArgument
     data class TypeArg(val value: ClassType) : BootstrapArgument
+    data class MethodTypeArg(val value: MethodDescriptor): BootstrapArgument
     data class HandleArg(val value: MethodHandle): BootstrapArgument
     data class DynamicArg(val value: ConstantDynamic) : BootstrapArgument
 }
