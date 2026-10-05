@@ -3,8 +3,6 @@ package com.leko.kvm.bytecode
 /**
  * A single object that can both read and write class files
  *
- * @param generator Handles everything declared by [BytecodeGenerator].
- * @param parser Handles everything declared by [BytecodeParser].
  * @see DistinctBytecodeConverter
  */
 interface BytecodeConverter: BytecodeGenerator, BytecodeParser
