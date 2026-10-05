@@ -58,7 +58,7 @@ class JarBuilder internal constructor() {
  *
  * ```kotlin
  * val jar = JarFile {
- *     addClass("com/example/Foo") { /* ... */ }
+ *     addClass("com.example.Foo") { /* ... */ }
  * }
  * ```
  *
