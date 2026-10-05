@@ -35,6 +35,15 @@ object JVMJarFileLoader : JarFileLoader {
     }
 }
 
+/**
+ * Opens the jar at [path] and indexes its class entries.
+ *
+ * @param path File system file of the jar to open.
+ * @return A [LazyJarFile] backed by the opened archive. The underlying
+ * archive stays open for the lifetime of the returned object.
+ */
+fun JarFileLoader.load(path: File): JarFile = load(path.absolutePath)
+
 private class LazyJarFile(
     private val path: String,
     private val jdkJarFile: JdkJarFile,
