@@ -1,41 +1,35 @@
 @file:Suppress("UNUSED")
 package com.leko.kvm.bytecode
 
-import com.leko.kvm.MethodSignature
-import com.leko.kvm.typing.ArrayType
-import com.leko.kvm.typing.BooleanType
-import com.leko.kvm.typing.ByteType
-import com.leko.kvm.typing.CharType
-import com.leko.kvm.typing.ClassType
-import com.leko.kvm.typing.DoubleType
-import com.leko.kvm.typing.FloatType
-import com.leko.kvm.typing.IntType
-import com.leko.kvm.typing.LongType
-import com.leko.kvm.typing.ReferenceType
-import com.leko.kvm.typing.ShortType
-import com.leko.kvm.typing.Type
-import com.leko.kvm.typing.VoidType
-import com.leko.kvm.typing.toType
+import com.leko.kvm.typing.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-
+/** Converts a primitive byte value to a `Value` object */
 fun byte(byteValue: Byte): ByteValue = ByteValue(byteValue)
 
+/** Converts a primitive char value to a `Value` object */
 fun char(charValue: Char): CharValue = CharValue(charValue)
 
+/** Converts a primitive short value to a `Value` object */
 fun short(shortValue: Short): ShortValue = ShortValue(shortValue)
 
+/** Converts a primitive int value to a `Value` object */
 fun int(intValue: Int): Value = IntValue(intValue)
 
+/** Converts a primitive long value to a `Value` object */
 fun long(longValue: Long): Value = LongValue(longValue)
 
+/** Converts a primitive float value to a `Value` object */
 fun float(floatValue: Float): Value = FloatValue(floatValue)
 
+/** Converts a primitive double value to a `Value` object */
 fun double(doubleValue: Double): Value = DoubleValue(doubleValue)
 
+/** Converts a primitive boolean value to a `Value` object */
 fun bool(booleanValue: Boolean): Value = BooleanValue(booleanValue)
 
+/** Converts a primitive string value to a `Value` object */
 fun string(s: String): Value = StringValue(s)
 
 /**

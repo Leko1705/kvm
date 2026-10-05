@@ -1,7 +1,7 @@
 import com.leko.kvm.PresentMethodDeclaration
-import com.leko.kvm.bytecode.ASM
 import com.leko.kvm.bytecode.buildClass
 import com.leko.kvm.bytecode.bytes
+import com.leko.kvm.bytecode.defaultParser
 import com.leko.kvm.name
 import com.leko.kvm.returnType
 import com.leko.kvm.typing.ClassType
@@ -22,7 +22,7 @@ class BytecodeLoadingTest {
         }
 
         val bytecode = clazz.bytes()
-        val loaded = ASM.parse(bytecode)
+        val loaded = defaultParser().parse(bytecode)
 
         assert(loaded.methods.any { it.name == "<init>" && it.returnType == VoidType })
         assert(loaded.methods.any { it.name == "foo" && it.returnType == ClassType("Foo") })

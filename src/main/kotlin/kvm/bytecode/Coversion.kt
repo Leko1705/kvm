@@ -9,10 +9,10 @@ import com.leko.kvm.typing.ClassType
  * Generates JVM class-file bytes for this class.
  *
  * @param generator the bytecode generator used for the conversion.
- * Defaults to [ASM].
+ * Defaults to the suitable default [defaultGenerator].
  * @return the generated class-file bytes.
  */
-fun ConcreteClass.bytes(generator: BytecodeGenerator = ASM): ByteArray =
+fun ConcreteClass.bytes(generator: BytecodeGenerator = defaultGenerator()): ByteArray =
     generator.generate(this)
 
 /**

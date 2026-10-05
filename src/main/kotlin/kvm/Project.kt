@@ -1,5 +1,7 @@
 package com.leko.kvm
 
+import com.leko.kvm.bytecode.defaultJarFileLoader
+
 /**
  * A collection of arbitrary analyzable [JarFile]s, forming
  * an inter-jar global context.
@@ -88,9 +90,9 @@ fun ProjectBuilder.buildJar(builder: JarBuilder.() -> Unit) {
  * @param path Location of the jar, interpreted by [loader]
  * (by default, a path on the local file system).
  * @param loader Strategy used to read and parse the jar. Defaults to
- * [JVMJarFileLoader].
+ * [defaultJarFileLoader].
  */
-fun ProjectBuilder.loadJar(path: String, loader: JarFileLoader = JVMJarFileLoader) {
+fun ProjectBuilder.loadJar(path: String, loader: JarFileLoader = defaultJarFileLoader()) {
     val jarFile = loader.load(path)
     jar(jarFile)
 }

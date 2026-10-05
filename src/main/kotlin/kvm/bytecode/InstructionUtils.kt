@@ -29,7 +29,7 @@ val Instruction.opcode: Byte?
         is BipushInstruction -> 16
         is SipushInstruction -> 17
         is LdcInstruction -> 18
-        is Ldc2wInstruction -> 20 // LDC2_W
+        is Ldc2wInstruction -> 20
 
         is ILoadInstruction -> 21
         is LLoadInstruction -> 22

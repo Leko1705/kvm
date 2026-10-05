@@ -1,6 +1,6 @@
 package com.leko.kvm
 
-import com.leko.kvm.bytecode.ASM
+import com.leko.kvm.bytecode.defaultParser
 import java.io.Closeable
 import java.io.File
 import java.util.zip.ZipEntry
@@ -58,7 +58,7 @@ private class LazyClassFile(
     // Only read + parse bytecode the first time this is touched
     override val declaration: ClassDeclaration by lazy {
         val bytes = jdkJarFile.getInputStream(entry).use { it.readBytes() }
-        ASM.parse(bytes)
+        defaultParser().parse(bytes)
     }
 
 }

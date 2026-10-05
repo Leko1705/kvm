@@ -16,7 +16,7 @@ import org.objectweb.asm.Type as AsmType
  * ASM and can also read selected bytecode structures back into the intermediate
  * representation.
  */
-object ASM : BytecodeGenerator, BytecodeParser {
+object ASM : BytecodeConverter {
 
     override fun generate(clazz: ConcreteClass): ByteArray {
         val writer = ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
