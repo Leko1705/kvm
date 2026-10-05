@@ -131,11 +131,11 @@ data object FConst2Instruction : ConstantInstruction
  * Returns the most compact instruction that pushes the float [value]:
  * `fconst_0`, `fconst_1`, `fconst_2`, or `ldc`.
  */
-fun FloatConstant(value: Float) : ConstantInstruction = when (value) {
-    0f if value.toRawBits() == 0 -> FConst0Instruction
-    1f -> FConst1Instruction
-    2f -> FConst2Instruction
-    else -> LdcInstruction(value)
+fun FloatConstant(value: Float) : ConstantInstruction {
+    if (value == 0f && value.toRawBits() == 0) return DConst0Instruction
+    if (value == 1f) return FConst1Instruction
+    if (value == 2f) return FConst2Instruction
+    return Ldc2wInstruction(value)
 }
 
 /** `dconst_0`: pushes the double `0.0`. */
@@ -148,10 +148,10 @@ data object DConst1Instruction : ConstantInstruction
  * Returns the most compact instruction that pushes the double [value]:
  * `dconst_0`, `dconst_1`, or `ldc2_w`.
  */
-fun DoubleConstant(value: Double) : ConstantInstruction = when (value) {
-    0.0 if value.toRawBits() == 0L -> DConst0Instruction
-    1.0 -> DConst1Instruction
-    else -> Ldc2wInstruction(value)
+fun DoubleConstant(value: Double) : ConstantInstruction {
+    if (value == 0.0 && value.toRawBits() == 0L) return DConst0Instruction
+    if (value == 1.0) return DConst1Instruction
+    return Ldc2wInstruction(value)
 }
 
 /**
